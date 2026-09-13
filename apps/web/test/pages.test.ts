@@ -53,6 +53,17 @@ test('页面引用的脚本与样式文件真实存在', () => {
   assert.equal(/@import|url\(\s*['"]?https?:/.test(css), false, '样式不得引用外部资源');
 });
 
+test('播报横幅在样式表里有基础样式、五个语气档与动画', () => {
+  const css = read('static/styles.css');
+  assert.match(css, /\.announce\s*\{/, '缺少 .announce 基础样式');
+  for (const tone of ['big', 'medium', 'neutral', 'quiet', 'error']) {
+    // neutral 用基础样式即可，其余四档各有自己的修饰类。
+    if (tone === 'neutral') continue;
+    assert.ok(css.includes(`.announce--${tone}`), `缺少 ${tone} 档的样式`);
+  }
+  assert.ok(css.includes('@keyframes announce-in'), '缺少播报的淡入淡出动画');
+});
+
 test('[hidden] 必须盖过作者样式，空弹窗不能遮住牌桌', () => {
   // 结算弹窗、操作按钮行、新手引导条都写了 display，作者样式压过 UA 的 [hidden]。
   // 少了这条 !important，隐藏只会在 DOM 里发生，屏幕上照样罩着。
@@ -106,6 +117,7 @@ test('页面不引用未列出的模块，模块之间只使用相对路径', ()
     'format',
     'util',
     'music',
+    'announce',
     'lobby',
     'room',
     'table',

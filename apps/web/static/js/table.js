@@ -1,6 +1,7 @@
 // 牌桌页逻辑。约束：模块顶层不访问 window/document/localStorage，浏览器启动放在函数内。
 
 import {ApiError, buildCommand, buildContributeCommand, createApi, ensureSession, isUnauthorized} from './api.js';
+import {createAnnouncer} from './announce.js';
 import {boardElements, cardElement, cardRank, isCard} from './cards.js';
 import {contributionKey, contributionPlan, saveCommitment, UNAVAILABLE_NOTICE} from './fairness.js';
 import {
@@ -189,7 +190,9 @@ function createTableView() {
     allInArmed: false,
     submitted: new Set(),
     lastActorKey: null,
-    lastHandKey: null,
+    /** 播报器与「是否已经建立过事件基线」：首帧只记基线，不补播入桌前的历史。 */
+    announcer: null,
+    announced: false,
     error: null,
     notice: null,
     redirecting: false,
@@ -241,6 +244,9 @@ function applyRoom(room, source) {
   view.offset = computeOffset(room.serverTime, Date.now());
   handleFairness(room);
   renderAll();
+  // 播报跟在渲染之后：先把新的桌面状态画出来，再把刚发生的事报一遍。
+  if (view.announcer) view.announcer.ingest(room.events ?? [], {initial: !view.announced});
+  view.announced = true;
 }
 
 function handleFairness(room) {
@@ -399,6 +405,26 @@ function renderResultDialog(room) {
     el('div', {className: 'dialog__actions'}, buttons),
     model.canAck ? el('p', {className: 'dialog__note', text: '倒计时结束会自动开下一手，不会把你卡在这里。'}) : null,
   ]);
+}
+
+/**
+ * 播报横幅的 DOM 出口：只负责把一条文字与语气画到 #announce 上，节奏由 announcer 管。
+ * 动画时长与停留时长用同一个数，淡出刚好在收起前结束。
+ */
+function announceDisplay() {
+  const banner = node('announce');
+  return {
+    show(text, tone, durationMs) {
+      if (!banner) return;
+      banner.textContent = text;
+      banner.className = `announce announce--${tone}`;
+      banner.style.animationDuration = `${durationMs}ms`;
+      setHidden(banner, false);
+    },
+    hide() {
+      setHidden(banner, true);
+    },
+  };
 }
 
 function renderBanner(room) {
@@ -774,6 +800,8 @@ async function main() {
   view.api = createApi({});
   wireActions();
   wireMusic();
+  // 必须在第一次 applyRoom 之前建好：首帧要走「只建立基线」那条路。
+  view.announcer = createAnnouncer({display: announceDisplay()});
   const session = await ensureSession(view.api);
   const room = await view.api.getRoom(view.roomId);
   view.socket = createRoomSocket({

@@ -550,6 +550,113 @@ input[type='number'] {
   transition: width 0.25s linear;
 }
 
+/* 行动播报横幅：牌桌中央闪现一条「谁做了什么」，2 秒左右自己收走（时长由 JS 内联给，
+   与 announcer 的停留定时器同一个数）。纯视觉，不发声。 */
+.announce {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%);
+  /* 结算弹窗是 40：结算播报要压在它上面，不然正好被弹窗吃掉。 */
+  z-index: 45;
+  pointer-events: none;
+  max-width: min(80%, 420px);
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: var(--shadow);
+  animation: announce-in 1600ms ease forwards;
+}
+
+.announce--big {
+  font-size: 22px;
+  border-color: var(--brass);
+  color: var(--brass);
+  animation-name: announce-big;
+}
+
+.announce--medium {
+  font-size: 18px;
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.announce--quiet {
+  font-size: 13px;
+  border-color: var(--line-strong);
+  color: var(--muted);
+}
+
+.announce--error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* 淡入 → 停留 → 淡出。关键点都用百分比，所以内联的时长改多少都成比例。 */
+@keyframes announce-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.86);
+  }
+  8% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.03);
+  }
+  15% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+}
+
+/* 全押：弹出来后左右抖两下，视觉上最重的一档。 */
+@keyframes announce-big {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  16% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  22% {
+    transform: translate(-53%, -50%) rotate(-2deg);
+  }
+  28% {
+    transform: translate(-47%, -50%) rotate(2deg);
+  }
+  34% {
+    transform: translate(-50%, -50%);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 关掉动画也照样看得见：基础样式不透明，收起仍归 announcer 的定时器管。 */
+@media (prefers-reduced-motion: reduce) {
+  .announce {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .seats {
   position: absolute;
   inset: 0;
