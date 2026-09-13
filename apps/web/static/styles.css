@@ -1,20 +1,25 @@
-/* 同桌 · 德州扑克 品牌样式：深绿牌桌、奶油牌面、黄铜点缀。移动优先，无外部资源。 */
+/* 同桌 · 德州扑克 品牌样式：简约风格——暖白底、白色面板、墨色文字，只在品牌绿与
+   庄家标记上用色。移动优先，无外部资源（pages.test.ts 会检查这一点）。 */
 
 :root {
-  --felt-deep: #0B3D2E;
-  --felt: #0F4A38;
-  --felt-light: #145C46;
-  --cream: #F5EFDC;
-  --cream-dim: #D9D2BC;
-  --brass: #B5A642;
-  --brass-bright: #D4C55C;
-  --ink: #10211B;
-  --danger: #B3261E;
-  --danger-soft: #E06A5F;
-  --ok: #4FBF8B;
+  --bg: #F5F4F0;
+  --surface: #FFFFFF;
+  --surface-2: #F0EEE9;
+  --line: #E6E3DC;
+  --line-strong: #D5D1C7;
+  --ink: #22252A;
+  --muted: #6E737B;
+  --accent: #2F6A50;
+  --accent-dark: #245741;
+  --accent-soft: #EAF2EE;
+  --on-accent: #FFFFFF;
+  --brass: #A98A4E;
+  --danger: #C0564F;
+  --danger-soft: #E2A09B;
+  --ok: #2F7A57;
   --radius: 12px;
   --radius-lg: 18px;
-  --shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  --shadow: 0 1px 2px rgba(20, 24, 28, 0.05), 0 8px 24px rgba(20, 24, 28, 0.06);
   --font: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', Roboto,
     sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -32,8 +37,8 @@ body {
 
 body {
   font-family: var(--font);
-  background: radial-gradient(circle at 50% 0%, var(--felt-light), var(--felt-deep) 70%);
-  color: var(--cream);
+  background: var(--bg);
+  color: var(--ink);
   min-height: 100vh;
   font-size: 15px;
   line-height: 1.55;
@@ -41,7 +46,7 @@ body {
 }
 
 a {
-  color: var(--brass-bright);
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -63,7 +68,7 @@ h1 {
 
 h2 {
   font-size: 17px;
-  color: var(--brass-bright);
+  color: var(--ink);
 }
 
 h3 {
@@ -72,7 +77,7 @@ h3 {
 
 h4 {
   font-size: 13px;
-  color: var(--cream-dim);
+  color: var(--muted);
   margin: 12px 0 6px;
 }
 
@@ -93,7 +98,7 @@ ol {
 }
 
 .muted {
-  color: var(--cream-dim);
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -104,8 +109,8 @@ ol {
   justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
-  background: rgba(0, 0, 0, 0.24);
-  border-bottom: 1px solid rgba(181, 166, 66, 0.35);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -115,7 +120,7 @@ ol {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--cream);
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -130,8 +135,8 @@ ol {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: linear-gradient(160deg, var(--brass-bright), var(--brass));
-  color: var(--felt-deep);
+  background: var(--accent);
+  color: var(--on-accent);
   font-size: 16px;
 }
 
@@ -158,8 +163,8 @@ ol {
 }
 
 .panel {
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(181, 166, 66, 0.28);
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 14px;
   margin-bottom: 14px;
@@ -201,16 +206,16 @@ ol {
 /* 按钮与表单 */
 .btn {
   appearance: none;
-  border: 1px solid var(--brass);
-  background: linear-gradient(180deg, var(--brass-bright), var(--brass));
-  color: var(--ink);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
   font: inherit;
   font-weight: 600;
   padding: 10px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius);
   cursor: pointer;
   min-height: 42px;
-  transition: filter 0.15s ease, transform 0.06s ease;
+  transition: background 0.15s ease, transform 0.06s ease;
 }
 
 .btn:active {
@@ -218,26 +223,36 @@ ol {
 }
 
 .btn:hover:not(:disabled) {
-  filter: brightness(1.06);
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
 }
 
 .btn:disabled {
   opacity: 0.42;
   cursor: not-allowed;
-  filter: none;
 }
 
 .btn--ghost {
   background: transparent;
-  color: var(--cream);
-  border-color: rgba(245, 239, 220, 0.45);
+  color: var(--ink);
+  border-color: var(--line-strong);
   font-weight: 500;
 }
 
+.btn--ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+
 .btn--danger {
-  background: linear-gradient(180deg, var(--danger-soft), var(--danger));
+  background: var(--danger);
   color: #fff;
   border-color: var(--danger);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: #A94A44;
+  border-color: #A94A44;
 }
 
 .btn--block {
@@ -256,14 +271,14 @@ ol {
 
 @keyframes pulse {
   50% {
-    filter: brightness(1.35);
+    opacity: 0.72;
   }
 }
 
 label {
   display: block;
   font-size: 13px;
-  color: var(--cream-dim);
+  color: var(--muted);
   margin-bottom: 4px;
 }
 
@@ -274,15 +289,15 @@ select {
   min-height: 42px;
   padding: 8px 10px;
   border-radius: var(--radius);
-  border: 1px solid rgba(245, 239, 220, 0.28);
-  background: rgba(0, 0, 0, 0.28);
-  color: var(--cream);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 input:focus,
 select:focus,
 .btn:focus-visible {
-  outline: 2px solid var(--brass-bright);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -301,12 +316,12 @@ input[type='number'] {
 }
 
 .tag--bot {
-  color: #8FD3FF;
+  color: #4B7CB0;
 }
 
 .tag--host,
 .tag--role {
-  color: var(--brass-bright);
+  color: var(--brass);
 }
 
 .tag--self {
@@ -321,20 +336,34 @@ input[type='number'] {
 }
 
 .banner--error {
-  background: rgba(179, 38, 30, 0.28);
+  background: #FBEDEB;
   border: 1px solid var(--danger-soft);
-  color: #FFE3DF;
+  color: #8E3A33;
 }
 
 .banner--notice {
-  background: rgba(181, 166, 66, 0.2);
-  border: 1px solid var(--brass);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
 }
 
 .banner--offline {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--cream-dim);
-  color: var(--cream-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+}
+
+/* 新手引导条：只在大厅首次进入时显示，点掉后写 localStorage。 */
+.banner--tip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+}
+
+.banner--tip button {
+  flex: 0 0 auto;
 }
 
 /* 牌面 */
@@ -343,9 +372,9 @@ input[type='number'] {
   width: 44px;
   height: 62px;
   border-radius: 6px;
-  background: linear-gradient(175deg, #FFFCF0, var(--cream));
-  border: 1px solid rgba(0, 0, 0, 0.22);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 1px 2px rgba(20, 24, 28, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -353,11 +382,11 @@ input[type='number'] {
 }
 
 .card--red {
-  color: #B3261E;
+  color: var(--danger);
 }
 
 .card--black {
-  color: #17211C;
+  color: var(--ink);
 }
 
 .card__corner {
@@ -375,20 +404,20 @@ input[type='number'] {
 }
 
 .card--back {
-  background: repeating-linear-gradient(45deg, #0B3D2E, #0B3D2E 4px, #165744 4px, #165744 8px);
-  border-color: var(--brass);
+  background: repeating-linear-gradient(45deg, #EDF3EF, #EDF3EF 4px, #DCE7E1 4px, #DCE7E1 8px);
+  border-color: var(--line-strong);
 }
 
 .card--back .card__back {
   width: 60%;
   height: 70%;
-  border: 1px solid rgba(181, 166, 66, 0.65);
+  border: 1px solid rgba(47, 106, 80, 0.4);
   border-radius: 3px;
 }
 
 .card--empty {
-  background: rgba(245, 239, 220, 0.06);
-  border: 1px dashed rgba(245, 239, 220, 0.3);
+  background: transparent;
+  border: 1px dashed var(--line-strong);
   box-shadow: none;
 }
 
@@ -424,10 +453,10 @@ input[type='number'] {
 .table-surface {
   position: relative;
   min-height: 420px;
-  border-radius: 42% / 26%;
-  background: radial-gradient(ellipse at 50% 45%, var(--felt-light), var(--felt) 55%, var(--felt-deep) 100%);
-  border: 6px solid rgba(181, 166, 66, 0.5);
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45), var(--shadow);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
   margin-bottom: 12px;
   transition: opacity 0.2s ease;
 }
@@ -465,8 +494,8 @@ input[type='number'] {
 }
 
 .pot {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(181, 166, 66, 0.4);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 2px 10px;
   display: flex;
@@ -475,21 +504,21 @@ input[type='number'] {
 }
 
 .pot__label {
-  color: var(--cream-dim);
+  color: var(--muted);
 }
 
 .pot__amount {
-  color: var(--brass-bright);
+  color: var(--accent);
   font-weight: 700;
 }
 
 .pot__eligible {
-  color: var(--cream-dim);
+  color: var(--muted);
   font-size: 11px;
 }
 
 .pot--refund .pot__amount {
-  color: var(--cream);
+  color: var(--ink);
 }
 
 .table-timer {
@@ -501,7 +530,7 @@ input[type='number'] {
 .timer__track {
   height: 6px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--line);
   overflow: hidden;
   margin-top: 4px;
 }
@@ -509,7 +538,7 @@ input[type='number'] {
 .timer__bar {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, var(--brass-bright), var(--brass));
+  background: var(--accent);
   transition: width 0.25s linear;
 }
 
@@ -522,8 +551,8 @@ input[type='number'] {
   position: absolute;
   transform: translate(-50%, -50%);
   width: 96px;
-  background: rgba(0, 0, 0, 0.42);
-  border: 1px solid rgba(245, 239, 220, 0.22);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   padding: 5px;
   font-size: 11px;
@@ -534,12 +563,13 @@ input[type='number'] {
 }
 
 .seat.is-actor {
-  border-color: var(--brass-bright);
-  box-shadow: 0 0 0 2px rgba(212, 197, 92, 0.35), var(--shadow);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(47, 106, 80, 0.18);
 }
 
 .seat.is-self {
-  background: rgba(20, 92, 70, 0.72);
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .seat.is-folded {
@@ -570,21 +600,21 @@ input[type='number'] {
 }
 
 .seat__stack {
-  color: var(--brass-bright);
+  color: var(--accent);
   font-weight: 600;
 }
 
 .seat__bet {
-  color: var(--cream-dim);
+  color: var(--muted);
 }
 
 .seat__folded {
-  color: var(--danger-soft);
+  color: var(--danger);
 }
 
 .seat__timer {
   font-family: var(--mono);
-  color: var(--brass-bright);
+  color: var(--muted);
 }
 
 /* 操作区 */
@@ -592,8 +622,8 @@ input[type='number'] {
   position: sticky;
   bottom: 0;
   z-index: 10;
-  background: rgba(4, 26, 20, 0.95);
-  border: 1px solid rgba(181, 166, 66, 0.32);
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 10px;
   margin-bottom: 12px;
@@ -603,7 +633,7 @@ input[type='number'] {
 
 .actions__hint {
   font-size: 13px;
-  color: var(--cream-dim);
+  color: var(--muted);
   margin-bottom: 8px;
 }
 
@@ -615,7 +645,7 @@ input[type='number'] {
 
 .raise-box {
   margin-top: 10px;
-  border-top: 1px dashed rgba(245, 239, 220, 0.22);
+  border-top: 1px dashed var(--line-strong);
   padding-top: 10px;
 }
 
@@ -632,19 +662,19 @@ input[type='number'] {
 
 .raise-delta {
   font-size: 12px;
-  color: var(--brass-bright);
+  color: var(--muted);
   min-height: 18px;
 }
 
 .raise-range {
   font-size: 11px;
-  color: var(--cream-dim);
+  color: var(--muted);
 }
 
 /* 结算面板 */
 .result {
-  border: 1px solid var(--brass);
-  background: rgba(181, 166, 66, 0.16);
+  border: 1px solid var(--line);
+  background: var(--surface);
   border-radius: var(--radius);
   padding: 10px;
   margin-bottom: 12px;
@@ -657,8 +687,97 @@ input[type='number'] {
 }
 
 .result__next {
-  color: var(--brass-bright);
+  color: var(--muted);
   margin-top: 4px;
+}
+
+/* 结算确认弹窗：每手结束弹一次，真人点「确认」才开下一手（没人点则等兜底倒计时）。 */
+.dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(34, 37, 42, 0.42);
+}
+
+.dialog__card {
+  width: min(420px, 100%);
+  max-height: 84vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(20, 24, 28, 0.22);
+}
+
+.dialog__title {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.dialog__subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.dialog__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 14px;
+}
+
+.dialog__row:last-of-type {
+  border-bottom: none;
+}
+
+.dialog__row--win .dialog__amount {
+  color: var(--accent);
+}
+
+.dialog__name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialog__amount {
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+.dialog__acks {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dialog__timer {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dialog__actions {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.dialog__note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
 }
 
 /* 事件流 */
@@ -675,11 +794,11 @@ input[type='number'] {
   display: flex;
   gap: 8px;
   padding: 4px 0;
-  border-bottom: 1px dashed rgba(245, 239, 220, 0.12);
+  border-bottom: 1px dashed var(--line);
 }
 
 .event__hand {
-  color: var(--brass-bright);
+  color: var(--accent);
   font-family: var(--mono);
   font-size: 11px;
   min-width: 34px;
@@ -687,7 +806,7 @@ input[type='number'] {
 
 .event__time {
   margin-left: auto;
-  color: var(--cream-dim);
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -704,18 +823,18 @@ input[type='number'] {
   align-items: center;
   gap: 8px;
   padding: 8px 4px;
-  border-bottom: 1px dashed rgba(245, 239, 220, 0.14);
+  border-bottom: 1px dashed var(--line);
   font-size: 13px;
 }
 
 .member--self {
-  background: rgba(20, 92, 70, 0.35);
+  background: var(--accent-soft);
   border-radius: var(--radius);
 }
 
 .member__seat {
   font-family: var(--mono);
-  color: var(--cream-dim);
+  color: var(--muted);
   min-width: 60px;
 }
 
@@ -725,7 +844,7 @@ input[type='number'] {
 
 .member__ready {
   margin-left: auto;
-  color: var(--cream-dim);
+  color: var(--muted);
 }
 
 .member__ready.is-ready {
@@ -733,32 +852,32 @@ input[type='number'] {
 }
 
 .member__stack {
-  color: var(--brass-bright);
+  color: var(--accent);
 }
 
 .disclosure {
   font-size: 12px;
-  color: var(--cream-dim);
-  border-left: 3px solid var(--brass);
+  color: var(--muted);
+  border-left: 3px solid var(--line-strong);
   padding-left: 8px;
   margin: 8px 0;
 }
 
 /* 核验页 */
 .audit__card {
-  border: 1px solid rgba(245, 239, 220, 0.2);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
   margin-bottom: 12px;
-  background: rgba(0, 0, 0, 0.24);
+  background: var(--surface);
 }
 
 .audit__card.is-valid {
-  border-color: rgba(79, 191, 139, 0.55);
+  border-color: var(--ok);
 }
 
 .audit__card.is-invalid {
-  border-color: var(--danger-soft);
+  border-color: var(--danger);
 }
 
 .audit__head {
@@ -784,12 +903,12 @@ input[type='number'] {
 .audit__badge.is-bad,
 .audit__check.is-bad,
 .audit__stored.is-bad {
-  color: var(--danger-soft);
+  color: var(--danger);
 }
 
 .audit__check.is-unknown,
 .audit__stored {
-  color: var(--cream-dim);
+  color: var(--muted);
 }
 
 .audit__fields {
@@ -801,7 +920,7 @@ input[type='number'] {
 }
 
 .audit__fields dt {
-  color: var(--cream-dim);
+  color: var(--muted);
 }
 
 .audit__fields dd {
@@ -828,7 +947,7 @@ input[type='number'] {
 
 .audit__errors {
   font-size: 12px;
-  color: var(--danger-soft);
+  color: var(--danger);
 }
 
 /* 规则页 */
@@ -844,14 +963,14 @@ input[type='number'] {
 
 .rules__table th,
 .rules__table td {
-  border: 1px solid rgba(245, 239, 220, 0.18);
+  border: 1px solid var(--line);
   padding: 6px 8px;
   text-align: left;
 }
 
 .rules__table th {
-  color: var(--brass-bright);
-  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
+  background: var(--surface-2);
 }
 
 .rules__rankings li {
@@ -859,7 +978,50 @@ input[type='number'] {
 }
 
 .rules__rankings strong {
-  color: var(--brass-bright);
+  color: var(--accent);
+}
+
+/* 新手教程 */
+.tutorial__step {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.tutorial__step:last-child {
+  border-bottom: none;
+}
+
+.tutorial__num {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.tutorial__body {
+  flex: 1 1 auto;
+}
+
+.tutorial__body h3 {
+  margin-bottom: 4px;
+}
+
+.tutorial__tip {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-top: 6px;
 }
 
 /* 大厅 */
@@ -874,13 +1036,13 @@ input[type='number'] {
 }
 
 .hero p {
-  color: var(--cream-dim);
+  color: var(--muted);
   font-size: 13px;
 }
 
 .identity {
   font-size: 12px;
-  color: var(--cream-dim);
+  color: var(--muted);
 }
 
 @media (min-width: 760px) {

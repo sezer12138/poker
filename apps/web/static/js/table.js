@@ -20,10 +20,12 @@ import {
   statusText,
   streetText,
 } from './format.js';
-import {el, navigate, pageUrl, qs, queryParam, render, setDisabled, setHidden, setText, toggleClass} from './util.js';
+import {createMusic} from './music.js';
+import {MUSIC_KEY, el, navigate, pageUrl, qs, queryParam, render, setDisabled, setHidden, setText, storageGet, storageSet, toggleClass} from './util.js';
 import {createRoomSocket} from './ws.js';
 
-const ACTION_DEADLINE_MS = 30000;
+/** 兜底用的行动时限：正常情况下以服务端下发的 room.actionTimeoutMs 为准。 */
+const ACTION_DEADLINE_MS = 90000;
 const MAX_EVENTS = 40;
 
 export function seatPositions(seats, viewerSeat) {
@@ -78,6 +80,64 @@ export function isValidRaiseTarget(legal, target, roundBet, stack) {
   return legal.allIn === true && target === roundBet + stack && target > currentBet;
 }
 
+/**
+ * 结算弹窗要显示的内容。纯函数：只吃数据、吐数据，DOM 由 renderResultDialog 负责，
+ * 这样金额与排序能在 Node 里直接断言（见 test/table.test.ts）。
+ * 返回 null 表示「这一手不该弹窗」——没有结果，或服务端没开确认门（比赛已结束）。
+ *
+ * 汇总口径：金额取服务端的 settle.changes（本手净输赢，见 roomview.ts 的 seatDeltas），
+ * 它是「赢的减去输的」；服务端升级前落盘的老快照没有这份数据，此时 delta 为 null，
+ * 界面只显示谁赢了底池，绝不自己算一个可能错的数出来。
+ */
+export function buildResultDialog(hand, members = [], settle = null, viewerSeat = null) {
+  if (!hand?.result || !settle) return null;
+  const nameOf = seat => members.find(member => member.seat === seat)?.name ?? `座位 ${seat}`;
+  const sumBy = list => {
+    const map = new Map();
+    for (const item of list ?? []) if (item.amount > 0) map.set(item.seat, (map.get(item.seat) ?? 0) + item.amount);
+    return map;
+  };
+  const awards = sumBy(hand.result.awards);
+  const refunds = sumBy(hand.result.refunds);
+  const deltas = new Map((settle.changes ?? []).map(change => [change.seat, change.delta]));
+
+  const rows = [...new Set(hand.players.map(player => player.seat))]
+    .sort((a, b) => a - b)
+    .map(seat => {
+      const delta = deltas.has(seat) ? deltas.get(seat) : null;
+      const won = awards.get(seat) ?? 0;
+      const refunded = refunds.get(seat) ?? 0;
+      return {
+        seat,
+        name: nameOf(seat),
+        delta,
+        amount: delta === null ? '—' : formatSignedChips(delta),
+        // 没有金额时退化成「赢没赢」：至少让人知道这手谁拿走了底池。
+        win: delta === null ? won > 0 : delta > 0,
+        detail: won > 0 ? `赢得底池 ${formatChips(won)}` : refunded > 0 ? `退回 ${formatChips(refunded)}` : '',
+      };
+    })
+    .sort((a, b) => (b.delta ?? -Infinity) - (a.delta ?? -Infinity) || a.seat - b.seat);
+
+  const required = [...(settle.required ?? [])].sort((a, b) => a - b);
+  const acks = [...(settle.acks ?? [])].sort((a, b) => a - b);
+  const canAck = viewerSeat !== null && required.includes(viewerSeat) && !acks.includes(viewerSeat);
+  // 副标题只说「谁赢下多大的底池」：逐座位的净输赢在 rows 里，两处都写金额容易自相矛盾
+  // （赢家拿走的底池 ≠ 他的净收入，底池里还有他自己投进去的那份）。
+  const winners = rows.filter(row => row.win).map(row => row.name);
+  const potTotal = (hand.result.pots ?? []).reduce((sum, pot) => sum + pot.amount, 0);
+  return {
+    handNo: settle.handNo,
+    title: `第 ${settle.handNo} 手结算`,
+    summary: winners.length === 0 ? '本手无人赢得底池' : `${winners.join('、')} 赢下 ${formatChips(potTotal)} 的底池`,
+    rows,
+    required,
+    acks,
+    canAck,
+    ackText: `已确认 ${acks.length}/${required.length}`,
+  };
+}
+
 function createTableView() {
   return {
     room: null,
@@ -93,6 +153,9 @@ function createTableView() {
     error: null,
     notice: null,
     redirecting: false,
+    /** 被淘汰/观战时可以手动关掉结算弹窗；记下手号，免得又被下一帧重新弹出来。 */
+    dismissedHand: null,
+    music: null,
   };
 }
 
@@ -214,10 +277,79 @@ function renderAll() {
   renderBoard(hand);
   renderPots(hand);
   renderResult(room, hand);
+  renderResultDialog(room);
   renderEvents(room);
   renderActions();
   renderFairness(room);
   renderBanner(room);
+}
+
+/**
+ * 结算确认弹窗：每手结束弹一次，列出谁赢谁输与金额；所有真人点完「确认」服务端才开
+ * 下一手，有人不点则由服务端兜底窗口自动继续（倒计时就显示在弹窗里）。
+ * 比赛结束时房间不再开确认门（settle 为 null），弹窗自然收起。
+ */
+function renderResultDialog(room) {
+  const overlay = node('result-dialog');
+  const card = node('result-dialog-card');
+  if (!overlay || !card) return;
+  const model = buildResultDialog(room.hand, room.members, room.settle, room.viewerSeat);
+  if (!model || view.dismissedHand === model.handNo) {
+    setHidden(overlay, true);
+    render(card, []);
+    return;
+  }
+  setHidden(overlay, false);
+
+  const rows = model.rows.map(row =>
+    el('div', {className: row.win ? 'dialog__row dialog__row--win' : 'dialog__row'}, [
+      el('span', {className: 'dialog__name', text: `${row.name}（座位 ${row.seat}）`}),
+      row.detail === '' ? null : el('span', {className: 'muted', text: row.detail}),
+      el('span', {className: 'dialog__amount', text: row.amount}),
+    ]),
+  );
+
+  const buttons = [];
+  if (model.canAck) {
+    buttons.push(
+      el('button', {
+        className: 'btn btn--block',
+        text: '确认，继续下一手',
+        dataset: {role: 'settle-ack'},
+        on: {click: () => sendCommand('settleAck', {handNo: model.handNo})},
+      }),
+    );
+  } else {
+    // 已确认过 / 被淘汰 / 观战：给一个关闭入口，别让弹窗把人困在这儿。
+    buttons.push(
+      el('button', {
+        className: 'btn btn--ghost btn--block',
+        text: '关闭',
+        on: {
+          click: () => {
+            view.dismissedHand = model.handNo;
+            renderResultDialog(view.room ?? {});
+          },
+        },
+      }),
+    );
+  }
+
+  render(card, [
+    el('div', {className: 'dialog__title', text: model.title, attrs: {id: 'result-dialog-title'}}),
+    el('div', {className: 'dialog__subtitle', text: model.summary}),
+    ...rows,
+    el('div', {className: 'dialog__acks'}, [
+      el('div', {text: `真人确认：${model.ackText}${model.required.length === 0 ? '（本手无真人参与）' : ''}`}),
+      el('div', {
+        className: 'dialog__timer',
+        dataset: {role: 'dialog-countdown'},
+        text: model.canAck ? '等待其他人确认…' : '等待其他玩家确认…',
+      }),
+    ]),
+    el('div', {className: 'dialog__actions'}, buttons),
+    model.canAck ? el('p', {className: 'dialog__note', text: '倒计时结束会自动开下一手，不会把你卡在这里。'}) : null,
+  ]);
 }
 
 function renderBanner(room) {
@@ -470,7 +602,9 @@ function tick() {
     if (active) {
       setText(qs('[data-role="timer-text"]', timer), hand.actor === room.viewerSeat ? `你的行动时间 ${formatCountdown(remaining)}` : `${seatText(hand.actor)} 行动 ${formatCountdown(remaining)}`);
       const bar = qs('[data-role="timer-bar"]', timer);
-      if (bar) bar.style.width = `${Math.round(countdownRatio(remaining, ACTION_DEADLINE_MS) * 100)}%`;
+      // 时限以服务端下发的为准，客户端只留一个兜底值；写死 30000 会让改时限变成两端改。
+      const total = typeof room.actionTimeoutMs === 'number' ? room.actionTimeoutMs : ACTION_DEADLINE_MS;
+      if (bar) bar.style.width = `${Math.round(countdownRatio(remaining, total) * 100)}%`;
       const seatTimer = qs('[data-role="seat-countdown"]');
       if (seatTimer) setText(seatTimer, formatCountdown(remaining));
     }
@@ -478,6 +612,12 @@ function tick() {
   const nextRemaining = remainingMs(room.nextHandAt, view.offset, now);
   const nextNode = qs('[data-role="next-hand-countdown"]');
   if (nextNode && nextRemaining !== null) setText(nextNode, `${formatCountdown(nextRemaining)}后开始下一手`);
+
+  // 结算弹窗里的兜底倒计时：所有人点确认会立刻开下一手，这个数字只是「最迟还有多久」。
+  const dialogNode = qs('[data-role="dialog-countdown"]');
+  if (dialogNode && nextRemaining !== null) {
+    setText(dialogNode, `等待确认，${formatCountdown(nextRemaining)}后自动开始下一手`);
+  }
 }
 
 function wireActions() {
@@ -543,6 +683,39 @@ function wireActions() {
   if (restart) restart.addEventListener('click', () => sendCommand('restart'));
 }
 
+/**
+ * 背景音乐开关。默认关：浏览器不允许没有用户手势就出声，与其让按钮显示「开」却
+ * 一声不响，不如让玩家自己点一下。上次开着的话这次也直接续上，并在第一次点击时
+ * 把被自动播放策略挂起的音频上下文唤醒。
+ */
+function wireMusic() {
+  const button = node('music-btn');
+  const music = createMusic({});
+  view.music = music;
+
+  const paint = () => {
+    const state = music.state();
+    setText(button, `音乐：${state.playing ? '开' : '关'}`);
+    setDisabled(button, !state.supported);
+    if (!state.supported) setText(button, '音乐：不可用');
+  };
+
+  if (storageGet(MUSIC_KEY) === 'on') {
+    if (music.start()) {
+      document.addEventListener('click', () => music.start(), {once: true});
+    }
+  }
+  paint();
+
+  button?.addEventListener('click', () => {
+    const playing = music.toggle();
+    storageSet(MUSIC_KEY, playing ? 'on' : 'off');
+    paint();
+  });
+  // 离开页面就停：定时器与振荡器不该跟着标签页过夜。
+  window.addEventListener('pagehide', () => music.stop());
+}
+
 async function main() {
   view.roomId = queryParam('id');
   if (!view.roomId) {
@@ -551,6 +724,7 @@ async function main() {
   }
   view.api = createApi({});
   wireActions();
+  wireMusic();
   const session = await ensureSession(view.api);
   const room = await view.api.getRoom(view.roomId);
   view.socket = createRoomSocket({

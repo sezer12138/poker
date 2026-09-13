@@ -12,10 +12,11 @@ const PAGES: [string, string][] = [
   ['table.html', 'table'],
   ['rules.html', 'rules'],
   ['audit.html', 'audit'],
+  ['tutorial.html', 'tutorial'],
 ];
 
-// renderSeats / renderResult 里动态生成的节点，本来就不应出现在静态 HTML 中。
-const DYNAMIC_SELECTORS = new Set(['seat-countdown', 'next-hand-countdown']);
+// renderSeats / renderResult / 结算弹窗里动态生成的节点，本来就不应出现在静态 HTML 中。
+const DYNAMIC_SELECTORS = new Set(['seat-countdown', 'next-hand-countdown', 'dialog-countdown']);
 
 function read(relative: string): string {
   return readFileSync(fileURLToPath(new URL(relative, ROOT)), 'utf8');
@@ -32,14 +33,32 @@ test('每个页面都存在并使用 type="module" 引入自己的脚本', () =>
 });
 
 test('页面引用的脚本与样式文件真实存在', () => {
-  for (const file of ['static/styles.css', 'static/js/lobby.js', 'static/js/room.js', 'static/js/table.js', 'static/js/rules.js', 'static/js/audit.js']) {
+  for (const file of [
+    'static/styles.css',
+    'static/js/lobby.js',
+    'static/js/room.js',
+    'static/js/table.js',
+    'static/js/rules.js',
+    'static/js/audit.js',
+    'static/js/tutorial.js',
+    'static/js/music.js',
+  ]) {
     assert.ok(existsSync(fileURLToPath(new URL(file, ROOT))), `缺少 ${file}`);
   }
   const css = read('static/styles.css');
-  assert.ok(css.includes('#0B3D2E'), '样式缺少深绿牌桌主色');
-  assert.ok(css.includes('#F5EFDC'), '样式缺少奶油牌面色');
-  assert.ok(css.includes('#B5A642'), '样式缺少黄铜点缀色');
+  assert.ok(css.includes('--bg: #F5F4F0'), '样式缺少简约风格的暖白底色');
+  assert.ok(css.includes('--surface: #FFFFFF'), '样式缺少纯白面板底色');
+  assert.ok(css.includes('--ink: #22252A'), '样式缺少墨色文字');
+  assert.ok(css.includes('--accent: #2F6A50'), '样式缺少墨绿点缀色');
   assert.equal(/@import|url\(\s*['"]?https?:/.test(css), false, '样式不得引用外部资源');
+});
+
+test('每个页面的主题色与样式表的主色一致', () => {
+  for (const [page] of PAGES) {
+    const html = read(page);
+    assert.ok(html.includes('<meta name="theme-color" content="#2F6A50" />'), `${page} 的 theme-color 未跟随新配色`);
+    assert.equal(html.includes('#0B3D2E'), false, `${page} 仍残留旧牌桌绿`);
+  }
 });
 
 test('脚本里引用的 #id 都能在对应页面找到', () => {
@@ -71,7 +90,22 @@ test('脚本里引用的 data-action / data-quick / data-role 都能在页面找
 });
 
 test('页面不引用未列出的模块，模块之间只使用相对路径', () => {
-  const modules = ['api', 'ws', 'fairness', 'verify', 'cards', 'format', 'util', 'lobby', 'room', 'table', 'rules', 'audit'];
+  const modules = [
+    'api',
+    'ws',
+    'fairness',
+    'verify',
+    'cards',
+    'format',
+    'util',
+    'music',
+    'lobby',
+    'room',
+    'table',
+    'rules',
+    'audit',
+    'tutorial',
+  ];
   for (const name of modules) {
     const source = read(`static/js/${name}.js`);
     for (const match of source.matchAll(/from '([^']+)'/g)) {

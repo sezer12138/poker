@@ -168,7 +168,7 @@ async function checkHttp(base: string): Promise<void> {
     health.status === 200 && health.body.ok === true && typeof health.body.mode === 'string',
     `mode=${health.body?.mode} auth=${health.body?.auth}`);
 
-  for (const page of ['/', '/index.html', '/room.html', '/table.html', '/rules.html', '/audit.html']) {
+  for (const page of ['/', '/index.html', '/room.html', '/table.html', '/rules.html', '/audit.html', '/tutorial.html']) {
     const response = await fetch(base + page);
     ok(`静态页 ${page} 可用`, response.status === 200 && /text\/html/.test(response.headers.get('content-type') ?? ''),
       `HTTP ${response.status}`);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isValidRaiseTarget, potTotal, quickRaiseTargets, seatPositions} from '../static/js/table.js';
+import {buildResultDialog, isValidRaiseTarget, potTotal, quickRaiseTargets, seatPositions} from '../static/js/table.js';
 
 /**
  * 牌桌的纯计算部分。加注目标的判定必须与引擎一致（packages/poker-engine/src/betting.ts）：
@@ -83,4 +83,85 @@ test('九个座位按自己为下方原点排布，坐标不重复', () => {
     assert.ok(point.x >= 0 && point.x <= 100 && point.y >= 0 && point.y <= 100, '坐标必须在 0–100 之间');
   }
   assert.equal(seatPositions([], 0).size, 0, '没人时不排座位');
+});
+
+/**
+ * 结算弹窗的内容：金额来自服务端的 settle.changes（本手净输赢），名字来自成员列表。
+ * 这里覆盖赢家/输家的金额与排序、已确认与待确认的按钮决策，以及服务端没给金额
+ * （升级前的老快照）时的退化显示。
+ */
+const settledHand = {
+  id: 7,
+  street: 'settled',
+  actor: null,
+  players: [
+    {seat: 0, stack: 1500, roundBet: 0, committed: 0, folded: false, hole: []},
+    {seat: 1, stack: 500, roundBet: 0, committed: 0, folded: true, hole: []},
+  ],
+  result: {
+    pots: [{amount: 500, eligible: [0, 1]}],
+    awards: [{seat: 0, amount: 500}],
+    refunds: [],
+  },
+};
+const settledMembers = [
+  {seat: 0, name: '甲'},
+  {seat: 1, name: '乙'},
+];
+const gate = (overrides: Record<string, unknown> = {}) => ({
+  handNo: 7,
+  acks: [],
+  required: [0, 1],
+  changes: [
+    {seat: 0, delta: 250},
+    {seat: 1, delta: -250},
+  ],
+  ...overrides,
+});
+
+/** table.js 是 JS：默认值让 TS 把 settle/viewerSeat 推成 null，这里显式放宽成 any 再用。 */
+const build = buildResultDialog as (hand: any, members?: any, settle?: any, viewerSeat?: any) => any;
+
+test('结算弹窗按座位列出输赢金额，赢家排在最前', () => {
+  const dialog = build(settledHand, settledMembers, gate(), 0);
+  assert.equal(dialog.title, '第 7 手结算');
+  assert.equal(dialog.summary, '甲 赢下 500 的底池');
+  assert.deepEqual(
+    dialog.rows.map((row: any) => [row.seat, row.name, row.amount, row.win]),
+    [
+      [0, '甲', '+250', true],
+      [1, '乙', '-250', false],
+    ],
+    '金额带符号，赢家在前',
+  );
+  assert.equal(dialog.rows[0].detail, '赢得底池 500', '还要说清底池有多少');
+});
+
+test('确认按钮的三种状态：待确认 / 已确认 / 无需确认', () => {
+  assert.equal(build(settledHand, settledMembers, gate(), 0).canAck, true);
+  // 自己已经点过确认：按钮换成关闭，不能让人重复点。
+  assert.equal(build(settledHand, settledMembers, gate({acks: [0]}), 0).canAck, false);
+  // 被淘汰后观看别人打：只显示结果，不给确认按钮。
+  const out = build(settledHand, settledMembers, gate({required: [1]}), 0);
+  assert.equal(out.canAck, false, '不在 required 里就没有确认按钮');
+  assert.equal(out.rows.length, 2, '但结果照常显示');
+  assert.equal(build(settledHand, settledMembers, gate(), null).canAck, false, '观战者不能确认');
+});
+
+test('服务端没给金额时只显示谁赢了，不编造数字', () => {
+  const dialog = build(settledHand, settledMembers, gate({changes: []}), 0);
+  assert.deepEqual(
+    dialog.rows.map((row: any) => [row.seat, row.amount, row.win]),
+    [
+      [0, '—', true],
+      [1, '—', false],
+    ],
+    '没有 changes 就显示占位符，赢家仍然排在最前',
+  );
+});
+
+test('没有结算结果或确认门未开时不弹窗', () => {
+  assert.equal(build({...settledHand, result: null}, settledMembers, gate(), 0), null);
+  assert.equal(build(settledHand, settledMembers, null, 0), null, '比赛结束后不再弹确认框');
+  assert.equal(build(null, settledMembers, gate(), 0), null);
 });
