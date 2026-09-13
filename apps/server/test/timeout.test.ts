@@ -60,6 +60,10 @@ describe('倒计时与超时', () => {
       texts.some((text: string) => text === `${name} 超时，自动弃牌`),
       texts.join('|'),
     );
+    // 超时也是弃牌，客户端照样按动作播报（文字里已经有「超时」）。
+    const timedOut = settled.events.find((event: any) => event.text === `${name} 超时，自动弃牌`);
+    assert.equal(timedOut.action, 'fold');
+    assert.equal(timedOut.amount, undefined);
   });
 
   it('每次成功行动都会重置行动窗口', async () => {

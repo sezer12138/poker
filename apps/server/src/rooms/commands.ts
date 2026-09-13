@@ -11,7 +11,7 @@ import {ACTION_TIMEOUT_MS, CONTRIBUTE_WINDOW_MS, MAX_MEMBERS, SETTLE_DELAY_MS} f
 import {AppError} from '../errors.ts';
 import {cardsText} from '../format.ts';
 import {uuid} from '../ids.ts';
-import type {DealtCards, Member, PersistedRoom} from '../storage/storage.ts';
+import type {DealtCards, EventAction, Member, PersistedRoom} from '../storage/storage.ts';
 
 export interface CommandContext {
   now: number;
@@ -151,9 +151,18 @@ function memberName(room: PersistedRoom, seat: SeatId): string {
   return room.members.find(member => member.seat === seat)?.name ?? `座位 ${seat}`;
 }
 
-function pushEvent(room: PersistedRoom, type: string, text: string): void {
+/**
+ * 事件流是客户端播报横幅的数据源。除固定的 seq/handNo/type/text 外，动作事件还带
+ * 「做了什么、多少钱」的结构化字段，客户端据此决定语气——从 text 里正则抠动作太脆。
+ */
+function pushEvent(
+  room: PersistedRoom,
+  type: string,
+  text: string,
+  detail: {action?: EventAction; amount?: number} = {},
+): void {
   room.seq += 1;
-  room.events.push({seq: room.seq, handNo: room.fairnessStage?.handNo ?? 0, type, text});
+  room.events.push({seq: room.seq, handNo: room.fairnessStage?.handNo ?? 0, type, text, ...detail});
 }
 
 /** Cap the log so a long match cannot grow the snapshot without bound. */
@@ -361,11 +370,21 @@ export function applySeatAction(
     if (event.type === 'action') {
       const player = after.players.find(item => item.seat === event.seat)!;
       const previous = before.players.find(item => item.seat === event.seat)?.roundBet ?? 0;
+      const paid = player.roundBet - previous;
       const text =
         source === 'timeout'
           ? `${memberName(room, event.seat)} 超时，自动${event.action.type === 'fold' ? '弃牌' : '过牌'}`
-          : `${memberName(room, event.seat)} ${actionText(event.action, player.roundBet - previous, player.roundBet)}`;
-      pushEvent(room, 'action', text);
+          : `${memberName(room, event.seat)} ${actionText(event.action, paid, player.roundBet)}`;
+      // 金额口径见 PublicEvent.amount：加注报累计目标，全押与跟注报实际投入。
+      const amount =
+        event.action.type === 'raiseTo'
+          ? event.action.amount
+          : event.action.type === 'allIn'
+            ? player.roundBet
+            : event.action.type === 'call'
+              ? paid
+              : undefined;
+      pushEvent(room, 'action', text, {action: event.action.type, amount});
     } else if (event.type === 'street') {
       pushEvent(room, 'street', streetText(after));
     }

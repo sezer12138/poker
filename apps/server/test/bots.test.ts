@@ -157,6 +157,10 @@ describe('机器人', () => {
       texts.includes(couldCheck ? `${name} 过牌` : `${name} 弃牌`),
       `兜底应执行超时动作：${texts.join('|')}`,
     );
+    // 机器人动作与真人同一套事件字段：客户端播报不看是谁下的。
+    const expected = couldCheck ? `${name} 过牌` : `${name} 弃牌`;
+    const fallback = room.events.slice(before).find(event => event.text === expected)!;
+    assert.equal(fallback.action, couldCheck ? 'check' : 'fold');
     assert.notEqual(room.tournament!.hand!.actor, seat, '牌桌不能停在机器人身上');
   });
 

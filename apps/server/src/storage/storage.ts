@@ -52,11 +52,20 @@ export interface FairnessRecord {
   button: number | null;
 }
 
+export type EventAction = 'fold' | 'check' | 'call' | 'allIn' | 'raiseTo';
+
 export interface PublicEvent {
   seq: number;
   handNo: number;
   type: string;
   text: string;
+  /** 只有 type:'action' 的事件带这个字段；服务端升级前落盘的老事件没有（undefined）。 */
+  action?: EventAction;
+  /**
+   * 与 action 配套的金额口径：raiseTo 是加注到的本轮累计目标（不是追加量），
+   * allIn 是全押后的本轮投入，call 是本次跟注额；弃牌、过牌与超时没有金额。
+   */
+  amount?: number;
 }
 
 export interface Deadlines {
