@@ -1,5 +1,7 @@
 import {after, before, describe, it} from 'node:test';
 import assert from 'node:assert/strict';
+import {evaluate} from '../../../packages/poker-engine/src/index.ts';
+import {bestFive, categoryOf} from '../src/rooms/showdown.ts';
 import {
   act,
   advanceMatch,
@@ -99,6 +101,89 @@ describe('结算确认门', () => {
     assert.equal(deltaOf(folded), -5, '弃牌的座位只亏掉了自己投入的盲注');
     const winner = changes.find(change => change.seat !== folded)!;
     assert.equal(winner.delta, 5, '赢家赢到的正好是对手投进底池的部分');
+  });
+
+  it('弃牌结束时只亮赢家底牌，弃牌座位没有牌面字段', async () => {
+    const {roomId, players} = await settledHand();
+    const view = await server.view(players[0]!, roomId);
+    const folded = view.hand.players.find((player: any) => player.folded);
+    const winner = view.hand.players.find((player: any) => !player.folded);
+    const changeOf = (seat: number) => view.settle.changes.find((change: any) => change.seat === seat)!;
+
+    // 赢家总是亮：这一手翻牌前就结束了，没有公共牌，直接亮两张底牌、没有牌型可算。
+    const shown = changeOf(winner.seat);
+    assert.equal(shown.cards.length, 2, '弃牌结束时亮赢家的两张底牌');
+    assert.equal(shown.category, null, '两张牌算不出牌型');
+    const raw = server.coordinator.get(roomId)!.tournament!.hand!;
+    assert.deepEqual(
+      [...shown.cards].sort((a: number, b: number) => a - b),
+      [...raw.players.find(player => player.seat === winner.seat)!.hole].sort((a: number, b: number) => a - b),
+      '亮出来的必须真的是他手里的牌',
+    );
+
+    // 弃牌者不亮：字段整个不带，客户端据「有没有 cards」显示「未摊牌」。
+    const hidden = changeOf(folded.seat);
+    assert.ok(!('cards' in hidden) && !('category' in hidden), '弃牌座位不能带牌面字段');
+
+    // 亮牌字段只加在 settle 上，视图这条隐私边界不能被它带松：换个不是弃牌者的视角看，
+    // 弃牌者的底牌仍然必须是空的（自己对家看得到自己的牌，那是原本就有的规则）。
+    for (const player of players) {
+      const other = await server.view(player, roomId);
+      if (seatOf(other, player) === folded.seat) continue;
+      const seen = other.hand.players.find((item: any) => item.seat === folded.seat)!;
+      assert.equal(seen.hole.length, 0, '弃牌者的底牌对别人必须还是看不见的');
+    }
+  });
+
+  it('打到摊牌时每个未弃牌座位都亮出最佳五张与牌型', async () => {
+    const room = await readyRoom(server);
+    await startMatch(server, room.roomId, room.players);
+    await contributeAll(server, room.roomId, room.players);
+
+    // 单挑：翻牌前小盲补齐，之后三条街双方一路过牌，正好打到河牌摊牌。
+    // 不要用 advanceMatch——它会把时钟推过整个结算窗口，看不到确认窗。
+    for (let step = 0; step < 12; step++) {
+      const actor = await waitingActor(server, room.roomId, room.players);
+      if (actor === null) break;
+      const action = actor.legal.check
+        ? {type: 'check' as const}
+        : actor.legal.call !== null
+          ? {type: 'call' as const}
+          : {type: 'fold' as const};
+      const result = await act(server, room.roomId, actor.session, action);
+      assert.equal(result.status, 200, JSON.stringify(result.body));
+    }
+
+    const view = await server.view(room.players[0]!, room.roomId);
+    assert.equal(view.fairness.stage, 'settled');
+    assert.equal(view.hand.board.length, 5, '一路过牌应该看到河牌');
+    assert.equal(view.hand.players.filter((player: any) => !player.folded).length, 2, '双方都没弃牌');
+
+    const raw = server.coordinator.get(room.roomId)!.tournament!.hand!;
+    const codes = new Set([
+      'straightFlush',
+      'quads',
+      'fullHouse',
+      'flush',
+      'straight',
+      'trips',
+      'twoPair',
+      'pair',
+      'highCard',
+    ]);
+    for (const change of view.settle.changes as any[]) {
+      assert.equal(change.cards.length, 5, `座位 ${change.seat} 摊牌要亮五张`);
+      assert.ok(codes.has(change.category), `座位 ${change.seat} 的牌型码不合法：${change.category}`);
+      // 与原始手牌独立算一遍：挑出来的必须真的是最优五张，牌型也必须对得上。
+      const player = raw.players.find(item => item.seat === change.seat)!;
+      const expected = bestFive([...player.hole, ...raw.board])!;
+      assert.deepEqual(
+        [...change.cards].sort((a: number, b: number) => a - b),
+        [...expected].sort((a: number, b: number) => a - b),
+        `座位 ${change.seat} 亮的不是最优五张`,
+      );
+      assert.equal(change.category, categoryOf(evaluate(expected)), `座位 ${change.seat} 的牌型码与牌不符`);
+    }
   });
 
   it('机器人座位也带金额，弹窗里不会出现没数字的一行', async () => {

@@ -1,6 +1,8 @@
 import {blindLevel, playerView} from '../../../../packages/poker-engine/src/index.ts';
-import type {HandView} from '../../../../packages/poker-engine/src/index.ts';
+import type {Card, HandView} from '../../../../packages/poker-engine/src/index.ts';
 import {ACTION_TIMEOUT_MS, EVENTS_VIEW_CAP, HISTORY_VIEW_CAP} from '../config.ts';
+import {revealedCards} from './showdown.ts';
+import type {Category, Reveal} from './showdown.ts';
 import type {FairnessStage, PersistedRoom, PublicEvent, RoomStatus} from '../storage/storage.ts';
 import type {FairnessStageName} from '../storage/storage.ts';
 
@@ -78,8 +80,21 @@ export interface RoomView {
    * 是没有意义的（确认命令不会生效）。客户端据此弹结算窗并显示谁已经点了确认。
    * `changes` 是每个座位本手的净输赢（赢 +奖励 与 +退回，输 -投入），结算弹窗按它
    * 逐条列出金额；服务器升级前落盘的老快照算不出这份差额，此时是空数组。
+   *
+   * `cards`/`category` 是本次新增的亮牌字段，同样是增量：**赢家总是亮，弃牌者不亮**。
+   * 摊牌（公共牌五张且不止一人未弃牌）时每位未弃牌者都有最佳五张与类别码；弃牌结束时
+   * 只有唯一赢家有，且底牌不足五张时直接给底牌、`category` 为 null。弃牌座位与
+   * 弃牌结束时的非赢家没有这两个字段（客户端显示「未摊牌」）。类别码的中文名由客户端
+   * 映射；每个座位的剩余筹码读视图里已有的 `hand.players[].stack`。
    */
-  settle: {handNo: number; acks: number[]; required: number[]; changes: {seat: number; delta: number}[]} | null;
+  settle:
+    | {
+        handNo: number;
+        acks: number[];
+        required: number[];
+        changes: {seat: number; delta: number; cards?: Card[]; category?: Category | null}[];
+      }
+    | null;
   notice: string;
   serverTime: number;
 }
@@ -182,7 +197,7 @@ export function roomView(room: PersistedRoom, viewerId: string, options: RoomVie
             handNo: stage.handNo,
             acks: [...(stage.settleAcks ?? [])].sort((a, b) => a - b),
             required: stage.seats.filter(seat => !isBotSeat(room, seat)),
-            changes: seatDeltas(room, stage),
+            changes: seatDeltas(room, stage, revealedCards(room.tournament?.hand ?? null)),
           }
         : null,
     notice: room.notice,
@@ -228,15 +243,23 @@ function isBotSeat(room: PersistedRoom, seat: number): boolean {
  * 牌局视图里没有「这手投入了多少」的痕迹，所以只能靠发牌前存下的快照做差；引擎的
  * 筹码守恒不变量保证这份差额就等于该座位这手赢的减去输的。
  * 快照缺失（服务器升级前落盘的老快照）时返回空数组，由客户端决定怎么退化显示。
+ * `reveals` 是亮牌表（见 showdown.ts）：只有该亮的座位才有牌面字段，没亮的一律不带
+ * 这两个键——客户端据「有没有 cards」区分「亮牌」与「未摊牌」，所以这里不能填 null 占位。
  */
-function seatDeltas(room: PersistedRoom, stage: FairnessStage): {seat: number; delta: number}[] {
+function seatDeltas(
+  room: PersistedRoom,
+  stage: FairnessStage,
+  reveals: ReadonlyMap<number, Reveal>,
+): {seat: number; delta: number; cards?: Card[]; category?: Category | null}[] {
   const start = stage.startStacks ?? {};
   const stacks = new Map((room.tournament?.entries ?? []).map(entry => [entry.seat, entry.stack]));
-  const deltas: {seat: number; delta: number}[] = [];
+  const deltas: {seat: number; delta: number; cards?: Card[]; category?: Category | null}[] = [];
   for (const seat of Object.keys(start).map(Number).sort((a, b) => a - b)) {
     const stack = stacks.get(seat);
     if (stack === undefined) continue; // 快照里有、牌局里已经没有的座位：不显示，也不猜。
-    deltas.push({seat, delta: stack - start[String(seat)]!});
+    const delta = stack - start[String(seat)]!;
+    const reveal = reveals.get(seat);
+    deltas.push(reveal === undefined ? {seat, delta} : {seat, delta, cards: reveal.cards, category: reveal.category});
   }
   return deltas;
 }
