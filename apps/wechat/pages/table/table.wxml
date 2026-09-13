@@ -28,6 +28,12 @@
     </view>
 
     <view
+      class="announce {{announce.toneClass}}"
+      wx:if="{{announce}}"
+      style="animation-duration:{{announce.durationMs}}ms"
+    >{{announce.text}}</view>
+
+    <view
       class="seat {{item.self ? 'self' : ''}} {{item.isActor ? 'actor' : ''}} {{item.folded ? 'folded' : ''}} {{item.occupied ? '' : 'vacant'}}"
       wx:for="{{seats}}"
       wx:key="seat"

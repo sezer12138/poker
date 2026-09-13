@@ -34,6 +34,111 @@
   width: 60%;
 }
 
+/* 行动播报横幅：牌桌中央闪现一条「谁做了什么」，时长由 JS 内联给（与播报器的停留
+   定时器同一个数）。纯视觉，不发声。 */
+.announce {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translate(-50%, -50%);
+  /* 结算弹窗遮罩是 100：结算播报要压在它上面，不然正好被弹窗吃掉。 */
+  z-index: 101;
+  max-width: 80%;
+  padding: 14rpx 30rpx;
+  border-radius: 999rpx;
+  background: var(--surface);
+  border: 3rpx solid var(--ink);
+  color: var(--ink);
+  font-size: 34rpx;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 8rpx 24rpx rgba(20, 24, 28, 0.12);
+  animation: announce-in 1600ms ease forwards;
+}
+
+.announce--big {
+  font-size: 48rpx;
+  color: var(--brass);
+  border-color: var(--brass);
+  animation-name: announce-big;
+}
+
+.announce--medium {
+  color: var(--accent-dark);
+  border-color: var(--accent);
+}
+
+.announce--quiet {
+  font-size: 28rpx;
+  color: var(--muted);
+  border-color: var(--line-strong);
+}
+
+.announce--error {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* 淡入 → 停留 → 淡出。关键点都用百分比，所以内联的时长改多少都成比例。 */
+@keyframes announce-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.86);
+  }
+  8% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.03);
+  }
+  15% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+}
+
+/* 全押：弹出来后左右抖两下，视觉上最重的一档。 */
+@keyframes announce-big {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  16% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  22% {
+    transform: translate(-53%, -50%) rotate(-2deg);
+  }
+  28% {
+    transform: translate(-47%, -50%) rotate(2deg);
+  }
+  34% {
+    transform: translate(-50%, -50%);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 关掉动画也照样看得见：基础样式不透明，收起仍归播报器的定时器管。 */
+@media (prefers-reduced-motion: reduce) {
+  .announce {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .pot-label {
   display: block;
   font-size: 22rpx;

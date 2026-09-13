@@ -68,9 +68,9 @@ function baseRoom(overrides: Record<string, unknown> = {}): Record<string, unkno
   };
 }
 
-function tablePage(wx: WxMock = createWx()) {
-  const loader = createLoader({wx, timers: createTimers()});
-  return {wx, context: createPageContext(loader, 'pages/table/table.js')};
+function tablePage(wx: WxMock = createWx(), timers = createTimers()) {
+  const loader = createLoader({wx, timers});
+  return {wx, timers, context: createPageContext(loader, 'pages/table/table.js')};
 }
 
 test('牌桌座位按自己为下方原点排布，盲注标记由按钮位推导', () => {
@@ -706,6 +706,65 @@ test('弹窗里的倒计时按 nextHandAt 走，到点后提示正在开下一�
   // 房间没有兜底时间时只说明「等其他人确认」，不显示一个假的倒计时。
   invoke(context, 'applyRoom', settledRoom({nextHandAt: null}));
   assert.equal(context.data.dialogTimerText, '');
+});
+
+test('行动播报：首帧只建基线，之后的动作按语气档弹出来', () => {
+  const timers = createTimers();
+  const {context} = tablePage(createWx(), timers);
+  // 刚进牌桌：快照里已有历史事件，一条都不该补播。
+  invoke(context, 'applyRoom', baseRoom());
+  assert.equal(context.data.announce, null, '入桌前的历史事件不该补播');
+
+  invoke(
+    context,
+    'applyRoom',
+    baseRoom({events: [{seq: 2, handNo: 3, type: 'action', text: '我 全押 950', action: 'allIn', amount: 950}]})
+  );
+  assert.deepStrictEqual(context.data.announce, {
+    text: '我 全押 950',
+    tone: 'big',
+    toneClass: 'announce--big',
+    durationMs: 2400
+  });
+
+  // 同一条快照反复推送（心跳、重新订阅）不该重播。
+  const shown = context.data.announce;
+  invoke(
+    context,
+    'applyRoom',
+    baseRoom({events: [{seq: 2, handNo: 3, type: 'action', text: '我 全押 950', action: 'allIn', amount: 950}]})
+  );
+  assert.deepStrictEqual(context.data.announce, shown, '同一条事件不该重播');
+
+  // 停留时间到点后收起，横幅不该永久留在桌面上。
+  timers.tick(2400);
+  assert.equal(context.data.announce, null);
+});
+
+test('行动播报的语气按事件类型与动作分档，老事件退回中性', () => {
+  const cases: [string, Record<string, unknown>][] = [
+    ['弃牌安静', {type: 'action', text: 'A 弃牌', action: 'fold'}],
+    ['加注中等', {type: 'action', text: 'A 加注到 300', action: 'raiseTo', amount: 300}],
+    ['跟注中性', {type: 'action', text: 'A 跟注 50', action: 'call', amount: 50}],
+    ['老事件缺 action', {type: 'action', text: 'A 做了什么'}],
+    ['发牌中等', {type: 'street', text: '公共牌 翻牌 ♥K ♦7 ♠2'}],
+    ['结算最大', {type: 'settle', text: '第 3 手结束，A 赢得 100 筹码'}],
+    ['结束最大', {type: 'finish', text: '比赛结束，A 获胜'}],
+    ['暂停报警', {type: 'pause', text: '牌局出现异常，已暂停'}]
+  ];
+  for (const [label, event] of cases) {
+    const {context} = tablePage();
+    invoke(context, 'applyRoom', baseRoom());
+    invoke(context, 'applyRoom', baseRoom({events: [{seq: 2, handNo: 3, ...event}]}));
+    const announce = context.data.announce as {text: string; tone: string; toneClass: string};
+    assert.ok(announce !== null, `${label}：该播报`);
+    assert.equal(announce.text, event.text, `${label}：报的是服务端给的原文`);
+    assert.ok(
+      ['big', 'medium', 'neutral', 'quiet', 'error'].includes(announce.tone),
+      `${label}：语气档要合法，实际 ${announce.tone}`
+    );
+    assert.equal(announce.toneClass, `announce--${announce.tone}`);
+  }
 });
 
 test('音乐开关：有能力时开关并记住偏好，没能力时如实显示不可用', () => {

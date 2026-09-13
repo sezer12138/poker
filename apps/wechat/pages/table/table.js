@@ -11,6 +11,7 @@ const format = require('../../utils/format.js');
 const fairness = require('../../utils/fairness.js');
 const settleUtil = require('../../utils/settle.js');
 const musicUtil = require('../../utils/music.js');
+const announceUtil = require('../../utils/announce.js');
 const config = require('../../config.js');
 
 const SEAT_COUNT = 9;
@@ -233,6 +234,7 @@ Page({
     awardRows: [],
     refundRows: [],
     events: [],
+    announce: null,
     offset: 0,
     countdownText: '—',
     countdownUrgent: false,
@@ -474,8 +476,34 @@ Page({
       serverNotice: room.notice || '',
       error: ''
     });
+    this.announceEvents(room.events);
     this.syncClock();
     this.updateFairness(room);
+  },
+
+  /**
+   * 行动播报：把新到的服务端事件交给播报器，按语气档在牌桌中央闪一条。
+   * 播报器与「是否已建立基线」记在实例上（与 dismissedHand 同一路数），
+   * 所以每一帧 applyRoom 都不会把播过的事件重播一遍。
+   */
+  announceEvents(events) {
+    const self = this;
+    if (!this.announcer) {
+      this.announcer = announceUtil.createAnnouncer({
+        display: {
+          show: function (text, tone, durationMs) {
+            self.setData({
+              announce: { text: text, tone: tone, toneClass: 'announce--' + tone, durationMs: durationMs }
+            });
+          },
+          hide: function () {
+            self.setData({ announce: null });
+          }
+        }
+      });
+    }
+    this.announcer.ingest(events || [], { initial: !this.announced });
+    this.announced = true;
   },
 
   updateFairness(room) {
