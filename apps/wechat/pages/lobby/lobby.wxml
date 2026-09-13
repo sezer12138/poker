@@ -1,0 +1,50 @@
+<view class="page lobby">
+  <view class="brand">
+    <view class="brand-title">同桌 · 德州扑克</view>
+    <view class="brand-sub">免费虚拟筹码 · 每人 1000 · 2-9 人</view>
+  </view>
+
+  <view class="notice" wx:if="{{notice}}">{{notice}}</view>
+
+  <view class="card">
+    <view class="card-title">身份</view>
+    <view class="row">
+      <text class="muted">当前身份</text>
+      <text>{{userName || '未登录'}}</text>
+    </view>
+    <view class="row">
+      <text class="muted">登录方式</text>
+      <text class="brass">{{modeText || '—'}}</text>
+    </view>
+    <input class="input nick" type="nickname" placeholder="输入昵称" placeholder-class="ph" value="{{nickname}}" bindinput="onNickInput" />
+    <button class="btn" bindtap="onRelogin" disabled="{{busy}}">按该昵称重新登录</button>
+  </view>
+
+  <view class="card">
+    <view class="card-title">创建房间</view>
+    <view class="row">
+      <text class="muted">机器人数量</text>
+      <picker mode="selector" range="{{botOptions}}" value="{{botIndex}}" bindchange="onBotsChange">
+        <view class="picker">{{bots}} 个机器人</view>
+      </picker>
+    </view>
+    <button class="btn btn-primary" bindtap="onCreate" disabled="{{busy}}">创建好友房</button>
+    <button class="btn" bindtap="onPractice" disabled="{{busy}}">机器人练习（1 名真人对多个机器人）</button>
+  </view>
+
+  <view class="card">
+    <view class="card-title">加入房间</view>
+    <input class="input" type="text" placeholder="输入房间码" placeholder-class="ph" value="{{code}}" bindinput="onCodeInput" />
+    <button class="btn btn-primary" bindtap="onJoin" disabled="{{busy}}">按房间码加入</button>
+    <view class="invite" wx:if="{{invite}}">
+      <view class="muted">收到邀请，可直接入座</view>
+      <button class="btn" bindtap="onJoinInvite" disabled="{{busy}}">加入邀请房</button>
+    </view>
+  </view>
+
+  <view class="card">
+    <button class="btn" bindtap="onRules">规则说明</button>
+  </view>
+
+  <view class="error" wx:if="{{error}}">{{error}}</view>
+</view>

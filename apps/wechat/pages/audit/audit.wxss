@@ -1,0 +1,20 @@
+.audit {
+  padding-bottom: 60rpx;
+}
+
+.kv {
+  margin-top: 10rpx;
+}
+
+.hex {
+  display: block;
+  font-size: 20rpx;
+  color: rgba(245, 239, 220, 0.85);
+  word-break: break-all;
+}
+
+.event {
+  font-size: 22rpx;
+  color: rgba(245, 239, 220, 0.78);
+  padding: 6rpx 0;
+}

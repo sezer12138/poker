@@ -1,0 +1,57 @@
+<view class="page audit">
+  <view class="notice" wx:if="{{locked}}">{{lockedText}}</view>
+  <view class="notice" wx:if="{{loading}}">正在读取核验数据…</view>
+  <view class="error" wx:if="{{error}}">{{error}}</view>
+
+  <view class="card" wx:if="{{!loading && !locked && !error}}">
+    <view class="card-title">核验结果</view>
+    <view class="row">
+      <text class="muted">比赛标识</text>
+      <text>{{matchId}}</text>
+    </view>
+    <view class="row">
+      <text class="muted">承诺校验</text>
+      <text class="{{valid ? 'brass' : 'danger'}}">{{valid ? '通过' : '未通过'}}</text>
+    </view>
+    <view class="row">
+      <text class="muted">手数</text>
+      <text>{{rounds.length}}</text>
+    </view>
+    <view class="row">
+      <text class="muted">与本地留存对照</text>
+      <text class="{{mismatchCount > 0 ? 'danger' : 'brass'}}">{{localCount}} 手可比对，{{mismatchCount}} 手不一致</text>
+    </view>
+    <view class="error" wx:for="{{verifyErrors}}" wx:key="*this">{{item}}</view>
+    <view class="muted">本地留存只能发现事后改动，不构成独立第三方认证。</view>
+  </view>
+
+  <view class="card" wx:for="{{rounds}}" wx:key="handNo">
+    <view class="row">
+      <text class="card-title">第 {{item.handNo}} 手</text>
+      <text class="{{item.matchClass}}">{{item.matchText}}</text>
+    </view>
+    <view class="muted">算法版本 {{item.version}}</view>
+    <view class="muted">参与座位 {{item.seatsText}}</view>
+    <view class="kv">
+      <text class="muted">服务器种子</text>
+      <text class="hex">{{item.serverSeed}}</text>
+    </view>
+    <view class="kv">
+      <text class="muted">种子承诺</text>
+      <text class="hex">{{item.commitment}}</text>
+    </view>
+    <view class="kv">
+      <text class="muted">牌序承诺</text>
+      <text class="hex">{{item.deckCommitment}}</text>
+    </view>
+    <view class="kv" wx:for="{{item.contributions}}" wx:for-item="contribution" wx:key="seatText">
+      <text class="muted">{{contribution.seatText}} 贡献</text>
+      <text class="hex">{{contribution.nonce}}</text>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{events.length > 0}}">
+    <view class="card-title">公开行动记录</view>
+    <view class="event" wx:for="{{events}}" wx:key="seq">#{{item.handNo}} {{item.text}}</view>
+  </view>
+</view>

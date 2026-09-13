@@ -1,0 +1,19 @@
+{
+  "pages": [
+    "pages/lobby/lobby",
+    "pages/room/room",
+    "pages/table/table",
+    "pages/rules/rules",
+    "pages/audit/audit"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "backgroundColor": "#0B3D2E",
+    "navigationBarBackgroundColor": "#0B3D2E",
+    "navigationBarTitleText": "同桌 · 德州扑克",
+    "navigationBarTextStyle": "white"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

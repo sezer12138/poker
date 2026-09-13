@@ -1,0 +1,43 @@
+{
+  "description": "同桌 · 德州扑克 微信小程序（原生 JS/WXML/WXSS，无 web-view）。appid 为 touristappid：没有真实 AppID 时可用微信开发者工具按「游客模式/测试号」导入预览。正式联调与发布前必须把 appid 替换为真实 AppID，并在微信公众平台配置 https/wss 服务器域名白名单；同时把 setting.urlCheck 改回 true。详见 README.md「无 AppID 时无法验证」清单。",
+  "projectname": "tongzhuo-poker-wechat",
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": false,
+    "nodeModules": false,
+    "autoAudits": false,
+    "ignoreUploadUnusedFiles": true,
+    "compileHotReLoad": true
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "大厅",
+          "pathName": "pages/lobby/lobby",
+          "query": ""
+        },
+        {
+          "name": "等待房间（邀请路径）",
+          "pathName": "pages/room/room",
+          "query": "invite=请替换为真实邀请令牌"
+        },
+        {
+          "name": "规则",
+          "pathName": "pages/rules/rules",
+          "query": ""
+        },
+        {
+          "name": "核验（需真实房间号）",
+          "pathName": "pages/audit/audit",
+          "query": "roomId=请替换为真实房间号"
+        }
+      ]
+    }
+  }
+}
