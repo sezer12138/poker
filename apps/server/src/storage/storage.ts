@@ -36,6 +36,12 @@ export interface FairnessStage {
    * object: the confirmations of the previous hand cannot leak into the next one.
    */
   settleAcks: number[];
+  /**
+   * 各座位带进本手的筹码（座位号 → 筹码），发牌前记下。引擎在结算时会把 committed 清零，
+   * 牌局视图里再也看不出谁在这手投入了多少，所以结算弹窗要显示的「赢/输多少」只能靠
+   * 这份快照与结算后的筹码做差（筹码守恒由引擎不变量保证）。
+   */
+  startStacks: Record<string, number>;
 }
 
 export interface FairnessRecord {
@@ -139,6 +145,10 @@ export function assertPersistedRoom(value: unknown): PersistedRoom {
   if (isRecord(stage) && !Array.isArray(stage['settleAcks'])) {
     // 结算确认门是后加的：老快照没有这个字段，补空数组即可（还未结算就等于没人确认）。
     stage['settleAcks'] = [];
+  }
+  if (isRecord(stage) && !isRecord(stage['startStacks'])) {
+    // 同样后加的：没有快照就算不出本手输赢金额，补空对象让结算弹窗退化成只显示赢家。
+    stage['startStacks'] = {};
   }
   return value as unknown as PersistedRoom;
 }

@@ -1,7 +1,7 @@
 import {blindLevel, playerView} from '../../../../packages/poker-engine/src/index.ts';
 import type {HandView} from '../../../../packages/poker-engine/src/index.ts';
 import {ACTION_TIMEOUT_MS, EVENTS_VIEW_CAP, HISTORY_VIEW_CAP} from '../config.ts';
-import type {PersistedRoom, PublicEvent, RoomStatus} from '../storage/storage.ts';
+import type {FairnessStage, PersistedRoom, PublicEvent, RoomStatus} from '../storage/storage.ts';
 import type {FairnessStageName} from '../storage/storage.ts';
 
 export interface RoomViewMember {
@@ -76,8 +76,10 @@ export interface RoomView {
   /**
    * 结算确认门。只在「这一手已结算、比赛仍在进行」时非空——比赛结束后弹确认框
    * 是没有意义的（确认命令不会生效）。客户端据此弹结算窗并显示谁已经点了确认。
+   * `changes` 是每个座位本手的净输赢（赢 +奖励 与 +退回，输 -投入），结算弹窗按它
+   * 逐条列出金额；服务器升级前落盘的老快照算不出这份差额，此时是空数组。
    */
-  settle: {handNo: number; acks: number[]; required: number[]} | null;
+  settle: {handNo: number; acks: number[]; required: number[]; changes: {seat: number; delta: number}[]} | null;
   notice: string;
   serverTime: number;
 }
@@ -180,6 +182,7 @@ export function roomView(room: PersistedRoom, viewerId: string, options: RoomVie
             handNo: stage.handNo,
             acks: [...(stage.settleAcks ?? [])].sort((a, b) => a - b),
             required: stage.seats.filter(seat => !isBotSeat(room, seat)),
+            changes: seatDeltas(room, stage),
           }
         : null,
     notice: room.notice,
@@ -218,4 +221,22 @@ function sortedContributions(contributions: Record<string, string>): [number, st
 
 function isBotSeat(room: PersistedRoom, seat: number): boolean {
   return room.members.some(member => member.seat === seat && member.bot);
+}
+
+/**
+ * 本手各座位的净输赢 = 结算后筹码 - 发牌前筹码。引擎结算时会把本轮与累计投入清零，
+ * 牌局视图里没有「这手投入了多少」的痕迹，所以只能靠发牌前存下的快照做差；引擎的
+ * 筹码守恒不变量保证这份差额就等于该座位这手赢的减去输的。
+ * 快照缺失（服务器升级前落盘的老快照）时返回空数组，由客户端决定怎么退化显示。
+ */
+function seatDeltas(room: PersistedRoom, stage: FairnessStage): {seat: number; delta: number}[] {
+  const start = stage.startStacks ?? {};
+  const stacks = new Map((room.tournament?.entries ?? []).map(entry => [entry.seat, entry.stack]));
+  const deltas: {seat: number; delta: number}[] = [];
+  for (const seat of Object.keys(start).map(Number).sort((a, b) => a - b)) {
+    const stack = stacks.get(seat);
+    if (stack === undefined) continue; // 快照里有、牌局里已经没有的座位：不显示，也不猜。
+    deltas.push({seat, delta: stack - start[String(seat)]!});
+  }
+  return deltas;
 }

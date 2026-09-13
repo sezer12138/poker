@@ -15,6 +15,7 @@ import {
 import type {ActionPolicy, Session, TestServer} from './helpers.ts';
 import {applyCommand} from '../src/rooms/commands.ts';
 import type {CommandContext} from '../src/rooms/commands.ts';
+import {roomView} from '../src/rooms/roomview.ts';
 import {assertPersistedRoom} from '../src/storage/storage.ts';
 import type {PersistedRoom} from '../src/storage/storage.ts';
 
@@ -79,6 +80,41 @@ describe('结算确认门', () => {
     assert.deepEqual(view.settle.acks, [], '还没人点确认');
     assert.deepEqual(view.settle.required, await seatsOf(roomId, players));
     assert.equal(view.actionTimeoutMs, 90000, '客户端画倒计时条要用它，不能自己写死');
+  });
+
+  it('结算视图给出每个座位本手的净输赢金额', async () => {
+    const {roomId, players, handNo} = await settledHand();
+    const view = await server.view(players[0]!, roomId);
+    assert.equal(view.settle.handNo, handNo);
+    const changes: {seat: number; delta: number}[] = view.settle.changes;
+    assert.equal(changes.length, 2, '两个座位都要有金额，弹窗才能逐条列出输赢');
+    assert.equal(
+      changes.reduce((sum, change) => sum + change.delta, 0),
+      0,
+      '筹码守恒：赢的总额必须等于输的总额',
+    );
+    // 这一手是弃牌结束的：弃牌的一方输掉自己投进底池的部分，另一方等额赢下。
+    const folded = view.hand.players.find((player: any) => player.folded).seat;
+    const deltaOf = (seat: number) => changes.find(change => change.seat === seat)!.delta;
+    assert.equal(deltaOf(folded), -5, '弃牌的座位只亏掉了自己投入的盲注');
+    const winner = changes.find(change => change.seat !== folded)!;
+    assert.equal(winner.delta, 5, '赢家赢到的正好是对手投进底池的部分');
+  });
+
+  it('机器人座位也带金额，弹窗里不会出现没数字的一行', async () => {
+    const room = await readyRoom(server, {bots: 1});
+    await startMatch(server, room.roomId, room.players);
+    await advanceMatch(server, room.roomId, room.players, {
+      until: (view: any) => view.fairness.stage === 'settled',
+    });
+    const view = await server.view(room.players[0]!, room.roomId);
+    assert.equal(view.fairness.stage, 'settled');
+    const seats = view.members.map((member: any) => member.seat).sort((a: number, b: number) => a - b);
+    assert.deepEqual(
+      view.settle.changes.map((change: any) => change.seat).sort((a: number, b: number) => a - b),
+      seats,
+      '每个座位（含机器人）都要有本手净输赢',
+    );
   });
 
   it('真人确认后全桌可见，但没集齐之前不开下一手', async () => {
@@ -271,7 +307,15 @@ describe('结算确认门', () => {
       members: [{userId: 'u0', name: '甲', seat: 0, bot: false, ready: true, joinedAt: 0}],
       matchId: 'm',
       tournament: null,
-      fairnessStage: {stage: 'settled', handNo: 1, seats: [0], round: {}, deck: null, dealt: null, button: null},
+      fairnessStage: {
+        stage: 'settled',
+        handNo: 1,
+        seats: [0],
+        round: {commitment: 'ab', deckCommitment: 'cd', contributions: {}},
+        deck: null,
+        dealt: null,
+        button: null,
+      },
       fairnessHistory: [],
       events: [],
       seq: 0,
@@ -283,9 +327,20 @@ describe('结算确认门', () => {
     };
     const room: PersistedRoom = assertPersistedRoom(legacy);
     assert.deepEqual(room.fairnessStage!.settleAcks, [], '缺字段补空数组');
+    assert.deepEqual(room.fairnessStage!.startStacks, {}, '缺筹码快照补空对象');
 
     // 字段在但是坏的形状（比如旧版本写成 null）也要补回来。
     const broken: Record<string, unknown> = {...legacy, fairnessStage: {...(legacy['fairnessStage'] as object), settleAcks: null}};
     assert.deepEqual(assertPersistedRoom(broken).fairnessStage!.settleAcks, []);
+
+    const truncated: Record<string, unknown> = {
+      ...legacy,
+      fairnessStage: {...(legacy['fairnessStage'] as object), settleAcks: [], startStacks: 'x'},
+    };
+    assert.deepEqual(assertPersistedRoom(truncated).fairnessStage!.startStacks, {});
+
+    // 老快照没有快照数据 → 结算弹窗拿不到金额，视图给空数组（客户端退化成只显示赢家）。
+    const view = roomView(room, 'u0', {now: 0});
+    assert.deepEqual(view.settle!.changes, [], '没有筹码快照时不编造金额');
   });
 });

@@ -238,6 +238,8 @@ export function beginHandFlow(room: PersistedRoom, ctx: CommandContext): void {
     button: null,
     // 新的 stage 对象，上一手的确认自然作废（确认门只认当前这一手）。
     settleAcks: [],
+    // 这里还不知道首手筹码（首手时 tournament 还没建），发牌前由 applyDeal 填。
+    startStacks: {},
   };
   room.deadlines.action = null;
   room.deadlines.actionSeat = null;
@@ -279,6 +281,9 @@ export function applyDeal(room: PersistedRoom, ctx: CommandContext): void {
     room.tournament === null
       ? createTournament(stage.seats, buttonFromDeck(deck, stage.seats))
       : room.tournament;
+  // 记下各座位带进本手的筹码：引擎结算会把 committed 清零，之后只有这份快照能算出
+  // 「这手谁赢了多少、谁输了多少」（见 storage.ts 的 startStacks）。
+  stage.startStacks = Object.fromEntries(tournament.entries.map(entry => [String(entry.seat), entry.stack]));
   const next = nextHand(tournament, deck);
   const hand = next.hand!;
   if (hand.id !== stage.handNo) throw new AppError('INTERNAL', '牌局手号与公平流程不一致');
