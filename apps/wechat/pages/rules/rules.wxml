@@ -1,0 +1,17 @@
+<view class="page rules">
+  <view class="card">
+    <view class="card-title">同桌 · 德州扑克 规则</view>
+    <view class="muted">免费虚拟筹码，不涉及任何现金、兑换或奖品。</view>
+  </view>
+
+  <view class="card" wx:for="{{sections}}" wx:key="title">
+    <view class="card-title">{{item.title}}</view>
+    <view class="rule-item" wx:for="{{item.items}}" wx:for-item="line" wx:key="*this">{{line}}</view>
+    <view wx:if="{{item.rankings}}">
+      <view class="rank-row" wx:for="{{item.rankings}}" wx:for-item="rank" wx:key="name">
+        <text class="rank-name">{{rank.name}}</text>
+        <text class="muted">{{rank.note}}</text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,79 @@
+<view class="page room" wx:if="{{room}}">
+  <view class="notice" wx:if="{{notice}}">{{notice}}</view>
+  <view class="notice" wx:if="{{serverNotice}}">{{serverNotice}}</view>
+  <view class="error" wx:if="{{error}}">{{error}}</view>
+
+  <view class="card">
+    <view class="row">
+      <text class="card-title">房间码</text>
+      <text class="link-text">{{statusText}} · {{linkText}}</text>
+    </view>
+    <view class="code" bindtap="onCopyCode">{{room.code}}</view>
+    <view class="row">
+      <text class="muted">盲注</text>
+      <text>{{blindText}}</text>
+    </view>
+    <view class="row">
+      <text class="muted">盲注级别</text>
+      <text>{{levelText}}</text>
+    </view>
+    <view class="row" wx:if="{{completedText}}">
+      <text class="muted">进度</text>
+      <text>{{completedText}}</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">成员（{{members.length}} 人）</view>
+    <view class="member" wx:for="{{members}}" wx:key="userId">
+      <view class="member-main">
+        <view class="member-name">
+          <text>{{item.name}}</text>
+          <text class="tag" wx:if="{{item.bot}}">机器人</text>
+          <text class="tag" wx:if="{{item.host}}">房主</text>
+          <text class="tag" wx:if="{{item.self}}">我</text>
+        </view>
+        <view class="muted">{{item.seatText}} · 筹码 {{item.stackText}}</view>
+      </view>
+      <view class="member-right">
+        <text class="{{item.ready ? 'brass' : 'muted'}}">{{item.readyText}}</text>
+        <text class="remove" wx:if="{{item.canRemove}}" data-seat="{{item.seat}}" bindtap="onRemoveBot">移除</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">随机核验披露</view>
+    <view class="muted">{{auditNotice}}</view>
+    <button class="btn {{myReady ? '' : 'btn-primary'}}" bindtap="onReady" disabled="{{busy}}">
+      {{myReady ? '取消准备' : '准备'}}
+    </button>
+    <button class="btn btn-primary" wx:if="{{isHost}}" bindtap="onStart" disabled="{{busy || !canStart}}">
+      {{canStart ? '开始比赛' : '等待所有真人准备'}}
+    </button>
+    <button class="btn" wx:if="{{isHost && room.status === 'waiting'}}" bindtap="onAddBot" disabled="{{busy}}">添加机器人</button>
+    <button class="btn btn-primary" wx:if="{{finished}}" bindtap="onRestart" disabled="{{busy || !canRestart}}">
+      {{canRestart ? '重新开始比赛' : '等待所有真人重新准备'}}
+    </button>
+  </view>
+
+  <view class="card">
+    <button class="btn" open-type="share">邀请好友（分享本房间）</button>
+    <button class="btn" bindtap="onCopyInvite">复制邀请令牌</button>
+    <button class="btn" wx:if="{{room.status === 'playing'}}" bindtap="onTable">进入牌桌</button>
+    <button class="btn" wx:if="{{finished}}" bindtap="onAudit">赛后核验</button>
+    <button class="btn" bindtap="onRules">规则说明</button>
+    <button class="btn" bindtap="onLeave" disabled="{{busy}}">离开房间</button>
+  </view>
+
+  <view class="card" wx:if="{{finished}}">
+    <view class="card-title">比赛结束</view>
+    <view>{{winnerText}}</view>
+    <view class="muted">重新准备后可再开一局，筹码与比赛标识会重置。</view>
+  </view>
+</view>
+
+<view class="page" wx:else>
+  <view class="notice">正在进入房间…</view>
+  <view class="error" wx:if="{{error}}">{{error}}</view>
+</view>

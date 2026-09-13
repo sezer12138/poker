@@ -1,0 +1,11 @@
+.worktrees/
+.superpowers/
+node_modules/
+coverage/
+*.log
+
+# 运行时数据：房间快照、会话表、自动生成的开发密钥
+data/
+
+# 部署凭据（POKER_STORAGE_KEY、微信 AppSecret、数据库口令）
+.env

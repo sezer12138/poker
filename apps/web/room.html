@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B3D2E" />
+    <title>等待房间 · 同桌德州扑克</title>
+    <link rel="stylesheet" href="static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span class="brand__mark">♠</span>
+        <span class="brand__name" id="room-title">等待房间</span>
+      </a>
+      <nav class="topbar__nav">
+        <a href="rules.html">规则</a>
+        <a href="index.html">大厅</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <div id="error-banner" class="banner banner--error" hidden></div>
+      <div id="notice-banner" class="banner banner--notice" hidden></div>
+
+      <section class="panel">
+        <div class="panel__title">
+          <h2 id="room-code">房间码</h2>
+          <span id="room-status" class="tag">等待中</span>
+        </div>
+        <p id="room-level" class="muted"></p>
+        <p id="viewer-role" class="identity"></p>
+        <p id="progress-hint" class="muted"></p>
+        <div class="row">
+          <button id="table-entry" class="btn" hidden>进入牌桌</button>
+          <button id="leave-btn" class="btn btn--ghost">离开房间</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__title">
+          <h2>成员与座位</h2>
+          <span class="muted">真人需准备，机器人自动准备</span>
+        </div>
+        <ul id="members" class="members"></ul>
+      </section>
+
+      <section id="ready-box" class="panel" hidden>
+        <h2>准备</h2>
+        <p id="ready-disclosure" class="disclosure"></p>
+        <button id="ready-btn" class="btn btn--block" data-ready="false">我准备好了</button>
+        <p class="muted" style="margin-top: 8px">
+          所有真人准备后由房主开始比赛。取消准备可以随时点击同一个按钮。
+        </p>
+      </section>
+
+      <section id="host-box" class="panel" hidden>
+        <h2>房主操作</h2>
+        <div class="row">
+          <button id="add-bot" class="btn btn--ghost grow">添加机器人</button>
+          <button id="start-btn" class="btn grow">开始比赛</button>
+        </div>
+        <p class="muted" style="margin-top: 8px">
+          至少 2 位参赛者且所有真人都已准备才能开始。房主也可以移除机器人或未开赛的真人（不能移除自己）。
+        </p>
+      </section>
+
+      <section id="finished-box" class="panel" hidden>
+        <h2>本场已结束</h2>
+        <p class="muted">确认所有真人重新准备后，房主可以重置房间并开始新一场比赛；筹码与比赛标识会一起重置。</p>
+        <button id="restart-btn" class="btn btn--block">重置房间，重新准备</button>
+      </section>
+
+      <section class="panel">
+        <h2>邀请好友</h2>
+        <p id="invite-link" class="mono"></p>
+        <div class="row">
+          <button id="copy-invite" class="btn btn--ghost">复制邀请链接</button>
+        </div>
+        <p id="copy-hint" class="muted"></p>
+      </section>
+
+      <section class="panel">
+        <h2>随机与核验说明</h2>
+        <div id="fairness"></div>
+      </section>
+    </main>
+
+    <script type="module" src="static/js/room.js"></script>
+  </body>
+</html>

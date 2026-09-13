@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B3D2E" />
+    <title>牌桌 · 同桌德州扑克</title>
+    <link rel="stylesheet" href="static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span class="brand__mark">♠</span>
+        <span class="brand__name" id="room-title">牌桌</span>
+      </a>
+      <nav class="topbar__nav">
+        <a href="rules.html">规则</a>
+        <a href="index.html">大厅</a>
+      </nav>
+    </header>
+
+    <main class="page page--wide">
+      <div id="error-banner" class="banner banner--error" hidden></div>
+      <div id="offline-banner" class="banner banner--offline" hidden></div>
+      <div id="notice-banner" class="banner banner--notice" hidden></div>
+
+      <section class="panel panel--tight">
+        <div class="row row--between">
+          <span id="room-code" class="muted"></span>
+          <span id="room-status" class="tag">比赛中</span>
+          <span id="street-text" class="muted"></span>
+          <span id="hand-count" class="muted"></span>
+          <span id="viewer-seat" class="muted"></span>
+        </div>
+        <p id="level-text" class="muted" style="margin: 6px 0 0"></p>
+      </section>
+
+      <section id="table-surface" class="table-surface">
+        <div id="seats" class="seats"></div>
+        <div class="table__center">
+          <div id="board" class="board"></div>
+          <div id="pots" class="pots"></div>
+          <div id="table-timer" class="table-timer" hidden>
+            <span data-role="timer-text">—</span>
+            <div class="timer__track"><div class="timer__bar" data-role="timer-bar"></div></div>
+          </div>
+          <div id="next-hand" class="result__next" hidden></div>
+        </div>
+      </section>
+
+      <section id="result" class="result" hidden></section>
+
+      <section class="actions" id="actions">
+        <div id="action-hint" class="actions__hint">等待房间状态…</div>
+        <div id="action-buttons" class="actions__row" hidden>
+          <button class="btn btn--ghost" data-action="fold">弃牌</button>
+          <button class="btn btn--ghost" data-action="check">过牌</button>
+          <button class="btn" data-action="call">跟注</button>
+          <button class="btn" data-action="raise">加注</button>
+          <button class="btn btn--danger" data-action="allIn">全押</button>
+        </div>
+        <div id="raise-box" class="raise-box" hidden>
+          <label for="raise-amount">本轮累计投入目标</label>
+          <input id="raise-amount" type="number" step="1" min="0" inputmode="numeric" />
+          <p id="raise-range" class="raise-range"></p>
+          <p id="raise-delta" class="raise-delta"></p>
+          <div id="quick-amounts" class="quick">
+            <button class="btn btn--ghost btn--small" data-quick="min">最小加注</button>
+            <button class="btn btn--ghost btn--small" data-quick="half">1/2 底池</button>
+            <button class="btn btn--ghost btn--small" data-quick="pot">底池</button>
+            <button class="btn btn--ghost btn--small" data-quick="max">全押上限</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>行动记录</h2>
+        <ul id="events" class="events"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>本手随机承诺</h2>
+        <div id="fairness"></div>
+      </section>
+
+      <section class="panel panel--tight">
+        <div class="row">
+          <button id="back-room" class="btn btn--ghost grow">返回等待房间</button>
+          <button id="restart-btn" class="btn btn--ghost grow">重置房间</button>
+          <button id="leave-btn" class="btn btn--ghost grow">离开房间</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="static/js/table.js"></script>
+  </body>
+</html>

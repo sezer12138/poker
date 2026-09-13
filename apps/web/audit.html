@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B3D2E" />
+    <title>赛后核验 · 同桌德州扑克</title>
+    <link rel="stylesheet" href="static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span class="brand__mark">♠</span>
+        <span class="brand__name">赛后核验</span>
+      </a>
+      <nav class="topbar__nav">
+        <a href="rules.html">规则</a>
+        <a href="index.html">大厅</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <div id="error-banner" class="banner banner--error" hidden></div>
+      <div id="audit-locked" class="banner banner--notice" hidden>
+        比赛结束后可核验。为避免泄露仍在进行的比赛，赛中不提供任何核验数据。
+      </div>
+
+      <section class="panel">
+        <h2>核验总览</h2>
+        <p id="viewer-line" class="identity"></p>
+        <p id="match-line" class="identity"></p>
+        <div id="audit-summary"></div>
+      </section>
+
+      <section class="panel">
+        <h2>本机留存的承诺</h2>
+        <div id="audit-stored"></div>
+      </section>
+
+      <section class="panel">
+        <h2>逐手核验</h2>
+        <div id="audit-rounds"></div>
+      </section>
+
+      <section class="panel">
+        <h2>公开事件记录</h2>
+        <ul id="audit-events" class="events"></ul>
+      </section>
+    </main>
+
+    <script type="module" src="static/js/audit.js"></script>
+  </body>
+</html>

@@ -1,0 +1,129 @@
+<view class="table-page">
+  <view class="topbar">
+    <text>第 {{handNo}} 手</text>
+    <text>盲注 {{blindText}}</text>
+    <text>{{levelText}}</text>
+    <text class="link">{{linkText}}</text>
+  </view>
+
+  <view class="notice" wx:if="{{serverNotice}}">{{serverNotice}}</view>
+  <view class="notice" wx:if="{{notice}}">{{notice}}</view>
+  <view class="notice" wx:if="{{fairnessTip}}">{{fairnessTip}}</view>
+  <view class="error" wx:if="{{error}}">{{error}}</view>
+
+  <view class="felt">
+    <view class="center">
+      <view class="pot">
+        <text class="pot-label">底池</text>
+        <text class="pot-value">{{potTotalText}}</text>
+        <text class="pot-label" wx:if="{{streetText}}">{{streetText}}</text>
+      </view>
+      <view class="board">
+        <view class="board-card {{item.empty ? 'empty' : (item.red ? 'red' : 'black')}}" wx:for="{{board}}" wx:key="index">
+          <text wx:if="{{!item.empty}}">{{item.label}}{{item.symbol}}</text>
+        </view>
+      </view>
+      <view class="next-hand" wx:if="{{hasNextHand}}">下一手 {{nextHandText}}</view>
+    </view>
+
+    <view
+      class="seat {{item.self ? 'self' : ''}} {{item.isActor ? 'actor' : ''}} {{item.folded ? 'folded' : ''}} {{item.occupied ? '' : 'vacant'}}"
+      wx:for="{{seats}}"
+      wx:key="seat"
+      style="left:{{item.left}}%;top:{{item.top}}%"
+    >
+      <view class="pos" wx:if="{{item.isButton}}">D</view>
+      <view class="pos sb" wx:elif="{{item.isSmallBlind}}">小盲</view>
+      <view class="pos bb" wx:elif="{{item.isBigBlind}}">大盲</view>
+
+      <view class="seat-name">
+        <text>{{item.name}}</text>
+        <text class="tag" wx:if="{{item.bot}}">机器人</text>
+        <text class="tag" wx:if="{{item.host}}">房主</text>
+      </view>
+
+      <view class="seat-cards" wx:if="{{item.inHand}}">
+        <view
+          class="mini-card {{card.hidden ? 'back' : (card.red ? 'red' : 'black')}}"
+          wx:for="{{item.cards}}"
+          wx:for-item="card"
+          wx:key="index"
+        >
+          <text wx:if="{{!card.hidden}}">{{card.label}}{{card.symbol}}</text>
+        </view>
+      </view>
+
+      <view class="seat-stack">筹码 {{item.stackText}}</view>
+      <view class="seat-bet" wx:if="{{item.roundBetText}}">本轮 {{item.roundBetText}}</view>
+      <view class="seat-bet" wx:if="{{item.committedText}}">总投入 {{item.committedText}}</view>
+      <view class="seat-award" wx:if="{{item.awardText}}">{{item.awardText}}</view>
+      <view class="seat-timer {{countdownUrgent ? 'urgent' : ''}}" wx:if="{{item.isActor}}">{{countdownText}}</view>
+    </view>
+  </view>
+
+  <view class="result" wx:if="{{potRows.length > 0}}">
+    <view class="card-title">本手结算</view>
+    <view wx:for="{{potRows}}" wx:key="label">
+      <view class="row">
+        <text class="muted">{{item.label}}</text>
+        <text>{{item.amountText}}</text>
+      </view>
+      <view class="muted">可获胜座位：{{item.eligibleText}}</view>
+    </view>
+    <view class="row" wx:for="{{awardRows}}" wx:key="seatText">
+      <text class="muted">{{item.seatText}} 赢得</text>
+      <text class="brass">{{item.amountText}}</text>
+    </view>
+    <view class="row" wx:for="{{refundRows}}" wx:key="seatText">
+      <text class="muted">{{item.seatText}} 退回</text>
+      <text>{{item.amountText}}</text>
+    </view>
+  </view>
+
+  <view class="actions" wx:if="{{myTurn}}">
+    <view class="muted">本轮已投入 {{myRoundBet}} · 加注累计目标 {{raiseTarget}} · 本次追加 {{raiseAddText}}</view>
+    <view class="quick" wx:if="{{canRaise}}">
+      <view class="quick-item" wx:for="{{quickTargets}}" wx:key="target" data-target="{{item.target}}" bindtap="onQuick">
+        <view class="quick-label">{{item.label}}</view>
+        <view class="quick-add">追加 {{item.addText}}</view>
+      </view>
+    </view>
+    <view class="raise-box" wx:if="{{canRaise}}">
+      <view class="raise-step" data-step="-1" bindtap="onStep">-</view>
+      <input class="raise-input" type="number" value="{{raiseTarget}}" bindinput="onRaiseInput" />
+      <view class="raise-step" data-step="1" bindtap="onStep">+</view>
+      <view class="raise-range">允许 {{raiseMin}} - {{raiseMax}}</view>
+    </view>
+    <view class="btns">
+      <button class="btn" wx:if="{{canFold}}" bindtap="onFold" disabled="{{busy}}">弃牌</button>
+      <button class="btn" wx:if="{{canCheck}}" bindtap="onCheck" disabled="{{busy}}">过牌</button>
+      <button class="btn" wx:if="{{canCall}}" bindtap="onCall" disabled="{{busy}}">{{callText}}</button>
+      <button class="btn" wx:if="{{canAllIn}}" bindtap="onAllIn" disabled="{{busy}}">全押</button>
+    </view>
+    <button class="btn btn-primary" wx:if="{{canRaise}}" bindtap="onRaise" disabled="{{busy}}">
+      加注到 {{raiseTarget}}（追加 {{raiseAddText}}）
+    </button>
+  </view>
+
+  <view class="waiting" wx:else>
+    <view class="muted">{{waitingText}}</view>
+    <view class="muted" wx:if="{{countdownText !== '—'}}">行动倒计时 {{countdownText}}</view>
+  </view>
+
+  <view class="events">
+    <view class="card-title">牌局记录</view>
+    <view class="muted" wx:if="{{events.length === 0}}">暂无记录</view>
+    <view class="event" wx:for="{{events}}" wx:key="seq">#{{item.handNo}} {{item.text}}</view>
+  </view>
+
+  <view class="finish" wx:if="{{finished}}">
+    <view class="card-title">比赛结束</view>
+    <view>{{winnerText}}</view>
+    <button class="btn btn-primary" bindtap="onAudit">赛后核验</button>
+    <button class="btn" bindtap="onBackRoom">返回房间</button>
+  </view>
+
+  <view class="footer">
+    <button class="btn" bindtap="onRules">规则说明</button>
+  </view>
+</view>
