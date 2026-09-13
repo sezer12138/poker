@@ -12,7 +12,9 @@ test('views whitelist recursively and allow actions only for actor',()=>{
   assert.equal(playerView(h,null).legal,null);
   function check(x:unknown):void { if(x&&typeof x==='object') for(const [k,v] of Object.entries(x)){assert.ok(!['deck','burned','cursor','actedAt','reopenBy'].includes(k));check(v);} }
   check(v);
+  const originalHole = [...h.players[0]!.hole];
   v.board.push(51);v.players[0]!.hole[0]=51;v.players[0]!.stack=0;
+  assert.deepEqual(h.players[0]!.hole, originalHole);
   assert.equal(h.board.length,0);assert.notEqual(h.players[0]!.stack,0);
 });
 test('fold winner stays private, showdown shows only nonfolded hands and clones result',()=>{
