@@ -7,6 +7,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createLoader, createTimers, createWx} from './harness.ts';
 
+interface CardView {
+  hidden: boolean;
+  card: number | null;
+  label: string;
+  symbol: string;
+  red: boolean;
+}
+
 interface DialogRow {
   seat: number;
   name: string;
@@ -15,6 +23,10 @@ interface DialogRow {
   amount: string;
   amountClass: string;
   detail: string;
+  cards: CardView[] | null;
+  typeName: string | null;
+  stackText: string;
+  revealText: string;
 }
 
 interface Dialog {
@@ -144,4 +156,85 @@ test('没有结算结果或确认门未开时返回 null', () => {
   // 成员列表缺失时用座位号兜底，不把 undefined 渲染给玩家。
   const dialog = settle.buildResultDialog(HAND, undefined, gate(), 0) as Dialog;
   assert.equal(dialog.rows[0].name, '第1座');
+});
+
+test('结算窗亮出摊牌的最佳五张与牌型，没亮的显示未摊牌', () => {
+  // ♥A ♥K ♥Q ♥J ♥T：小程序规则页不单列皇家同花顺，一律显示「同花顺」。
+  const dialog = load().buildResultDialog(
+    HAND,
+    MEMBERS,
+    gate({
+      changes: [
+        {seat: 0, delta: 250, cards: [38, 37, 36, 35, 34], category: 'straightFlush'},
+        {seat: 1, delta: -250}
+      ]
+    }),
+    0
+  ) as Dialog;
+  const winner = dialog.rows[0];
+  const loser = dialog.rows[1];
+  assert.equal(winner.cards?.length, 5, '原样把服务端亮的五张交给渲染层');
+  assert.equal(winner.cards?.[0].label, 'A', '牌面标签来自 utils/cards.js，页面直接渲染');
+  assert.equal(winner.cards?.[0].symbol, '♥');
+  assert.equal(winner.cards?.[0].red, true, '红桃要标成红色');
+  assert.equal(winner.typeName, '同花顺');
+  assert.equal(winner.revealText, '', '亮了牌就不该再写「未摊牌」');
+  assert.equal(winner.stackText, '剩余 1,500', '剩余筹码直接读视图里的 stack');
+
+  assert.equal(loser.cards, null);
+  assert.equal(loser.typeName, null);
+  assert.equal(loser.revealText, '未摊牌', '服务端没给牌就是不亮');
+  assert.equal(loser.stackText, '剩余 500');
+});
+
+test('九个牌型码都映射到中文名，不认识的码不显示', () => {
+  const settle = load();
+  const nameOf = (category: string) => {
+    const dialog = settle.buildResultDialog(
+      HAND,
+      MEMBERS,
+      gate({changes: [{seat: 0, delta: 250, cards: [38, 37], category}, {seat: 1, delta: -250}]}),
+      0
+    ) as Dialog;
+    return dialog.rows[0].typeName;
+  };
+  assert.equal(nameOf('straightFlush'), '同花顺');
+  assert.equal(nameOf('quads'), '四条');
+  assert.equal(nameOf('fullHouse'), '葫芦');
+  assert.equal(nameOf('flush'), '同花');
+  assert.equal(nameOf('straight'), '顺子');
+  assert.equal(nameOf('trips'), '三条');
+  assert.equal(nameOf('twoPair'), '两对');
+  assert.equal(nameOf('pair'), '一对');
+  assert.equal(nameOf('highCard'), '高牌');
+  // 服务端将来加了新牌型：宁可什么都不显示，也不要显示一个错的词。
+  assert.equal(nameOf('royalFlush'), null);
+});
+
+test('弃牌结束的赢家亮底牌但没有牌型名', () => {
+  const dialog = load().buildResultDialog(
+    HAND,
+    MEMBERS,
+    gate({
+      changes: [
+        {seat: 0, delta: 5, cards: [12, 25], category: null},
+        {seat: 1, delta: -5}
+      ]
+    }),
+    0
+  ) as Dialog;
+  assert.equal(dialog.rows[0].cards?.length, 2, '没发公共牌时直接亮两张底牌');
+  assert.equal(dialog.rows[0].typeName, null, '两张牌算不出牌型');
+  assert.equal(dialog.rows[1].revealText, '未摊牌', '弃牌者不亮');
+});
+
+test('服务端没给亮牌数据时每一行都显示未摊牌（老快照兼容）', () => {
+  const dialog = load().buildResultDialog(HAND, MEMBERS, gate({changes: []}), 0) as Dialog;
+  assert.deepStrictEqual(
+    dialog.rows.map((row) => [row.cards, row.typeName, row.revealText]),
+    [
+      [null, null, '未摊牌'],
+      [null, null, '未摊牌']
+    ]
+  );
 });

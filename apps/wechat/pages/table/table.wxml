@@ -133,10 +133,25 @@
     <view class="dialog">
       <view class="dialog-title">{{dialog.title}}</view>
       <view class="dialog-subtitle">{{dialog.summary}}</view>
+      <!-- 每个座位两行：上面是输赢金额，下面是亮出来的牌、牌型与剩余筹码。 -->
       <view class="dialog-row" wx:for="{{dialog.rows}}" wx:key="seat">
-        <text class="dialog-name">{{item.name}}（座位 {{item.seat}}）</text>
-        <text class="dialog-detail" wx:if="{{item.detail}}">{{item.detail}}</text>
-        <text class="dialog-amount {{item.amountClass}}">{{item.amount}}</text>
+        <view class="dialog-head">
+          <text class="dialog-name">{{item.name}}（座位 {{item.seat}}）</text>
+          <text class="dialog-detail" wx:if="{{item.detail}}">{{item.detail}}</text>
+          <text class="dialog-amount {{item.amountClass}}">{{item.amount}}</text>
+        </view>
+        <view class="dialog-info">
+          <block wx:if="{{item.cards}}">
+            <view class="dialog-cards">
+              <view class="mini-card {{card.red ? 'red' : 'black'}}" wx:for="{{item.cards}}" wx:for-item="card" wx:key="index">
+                <text>{{card.label}}{{card.symbol}}</text>
+              </view>
+            </view>
+            <text class="dialog-type" wx:if="{{item.typeName}}">{{item.typeName}}</text>
+          </block>
+          <text class="dialog-type" wx:else>{{item.revealText}}</text>
+          <text class="dialog-stack">{{item.stackText}}</text>
+        </view>
       </view>
       <view class="dialog-acks">
         <view>真人确认：{{dialog.ackText}}</view>

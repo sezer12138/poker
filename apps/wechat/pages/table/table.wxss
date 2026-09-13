@@ -350,10 +350,14 @@
 }
 
 .dialog-row {
-  display: flex;
-  align-items: baseline;
   padding: 14rpx 0;
   border-bottom: 1rpx solid var(--line);
+}
+
+/* 每个座位两行：上面输赢金额，下面亮出来的牌与剩余筹码。 */
+.dialog-head {
+  display: flex;
+  align-items: baseline;
 }
 
 .dialog-name {
@@ -370,6 +374,31 @@
 .dialog-amount {
   font-size: 28rpx;
   font-weight: 600;
+}
+
+.dialog-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: var(--muted);
+}
+
+.dialog-cards {
+  display: flex;
+  margin-right: 10rpx;
+}
+
+.dialog-type {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--ink);
+  margin-right: 10rpx;
+}
+
+.dialog-stack {
+  margin-left: auto;
 }
 
 .dialog-acks {

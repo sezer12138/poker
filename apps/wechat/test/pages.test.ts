@@ -632,6 +632,37 @@ test('结算确认弹窗：列出每人净输赢，确认门开着才给确认�
   assert.equal(context.data.dialog, null);
 });
 
+test('结算弹窗把亮牌、牌型与剩余筹码透传给 WXML，没亮牌的写未摊牌', () => {
+  const {context} = tablePage();
+  // 夹具的 changes 不带 cards/category：服务端升级前落盘的老快照就是这个样子。
+  invoke(context, 'applyRoom', settledRoom());
+  const legacy = context.data.dialog as {rows: {seat: number; revealText: string; stackText: string}[]};
+  assert.deepStrictEqual(
+    legacy.rows.map((row) => `${row.seat}:${row.revealText}:${row.stackText}`),
+    ['0:未摊牌:剩余 1,100', '2:未摊牌:剩余 1,000', '1:未摊牌:剩余 800'],
+    '没有亮牌数据时逐行显示未摊牌，剩余筹码读视图里的 stack'
+  );
+
+  // 服务端给了牌：这一行要带上牌面、牌型名，并且不再显示「未摊牌」。
+  const changed = settledRoom();
+  (changed.settle as {changes: unknown[]}).changes = [
+    {seat: 0, delta: 50, cards: [38, 37, 36, 35, 34], category: 'straightFlush'},
+    {seat: 1, delta: -50},
+    {seat: 2, delta: 0}
+  ];
+  invoke(context, 'applyRoom', changed);
+  const rows = (context.data.dialog as {
+    rows: {seat: number; cards: {label: string; symbol: string; red: boolean}[] | null; typeName: string | null; revealText: string}[];
+  }).rows;
+  assert.equal(rows[0]!.cards!.length, 5);
+  assert.equal(rows[0]!.cards![0]!.label, 'A');
+  assert.equal(rows[0]!.cards![0]!.red, true, '红桃渲染成红色');
+  assert.equal(rows[0]!.typeName, '同花顺');
+  assert.equal(rows[0]!.revealText, '');
+  assert.equal(rows[1]!.cards, null, '服务端没给牌的座位保持未摊牌');
+  assert.equal(rows[1]!.revealText, '未摊牌');
+});
+
 test('结算确认按钮发 settleAck，带当前手号且不带 expectedVersion', async () => {
   const wx = createWx();
   const {context} = tablePage(wx);

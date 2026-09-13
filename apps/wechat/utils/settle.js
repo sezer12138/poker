@@ -6,9 +6,30 @@
  * 汇总口径：金额取服务端的 settle.changes（本手净输赢，见 apps/server/src/rooms/roomview.ts
  * 的 seatDeltas），它是「带进本手的筹码减去结算后的筹码」。服务端升级前落盘的老快照没有
  * 这份数据，此时 delta 为 null，界面只显示谁赢了底池，绝不自己算一个可能错的数出来。
+ *
+ * 亮牌口径同样来自服务端：changes 里带 cards 的座位就是亮了的（赢家总是亮、弃牌者不亮），
+ * 没带的显示「未摊牌」。剩余筹码直接读视图里的 hand.players[].stack，服务端不另发字段。
  */
 
 const format = require('./format.js');
+const cardUtil = require('./cards.js');
+
+/**
+ * 牌型类别码 → 中文名。类别码是服务端的稳定契约（apps/server/src/rooms/showdown.ts），
+ * 中文怎么写由各客户端自己定：小程序规则页没有单列皇家同花顺（归入同花顺），这里跟着
+ * 规则页的口径，不额外造一档 web 才有的名字。
+ */
+const TYPE_NAMES = {
+  straightFlush: '同花顺',
+  quads: '四条',
+  fullHouse: '葫芦',
+  flush: '同花',
+  straight: '顺子',
+  trips: '三条',
+  twoPair: '两对',
+  pair: '一对',
+  highCard: '高牌'
+};
 
 /** 带符号的筹码：+250 / -250 / 0。 */
 function signedChips(value) {
@@ -45,11 +66,13 @@ function buildResultDialog(hand, members, settle, viewerSeat) {
   if (!hand || !hand.result || !settle) return null;
   const awards = sumBySeat(hand.result.awards);
   const refunds = sumBySeat(hand.result.refunds);
-  const deltas = {};
-  const hasDelta = {};
+  const changes = {};
   (settle.changes || []).forEach(function (change) {
-    deltas[change.seat] = change.delta;
-    hasDelta[change.seat] = true;
+    changes[change.seat] = change;
+  });
+  const players = {};
+  (hand.players || []).forEach(function (player) {
+    players[player.seat] = player;
   });
 
   const seats = [];
@@ -58,9 +81,13 @@ function buildResultDialog(hand, members, settle, viewerSeat) {
   });
 
   const rows = seats.sort(ascending).map(function (seat) {
-    const delta = hasDelta[seat] ? deltas[seat] : null;
+    const change = changes[seat] || null;
+    const player = players[seat] || null;
+    const delta = change ? change.delta : null;
     const won = awards[seat] || 0;
     const refunded = refunds[seat] || 0;
+    // 服务端只给「该亮的人」带 cards/category（赢家总是亮、弃牌者不亮，见 showdown.ts）。
+    const shown = change && change.cards ? change.cards : null;
     return {
       seat: seat,
       name: nameOf(members, seat),
@@ -69,7 +96,11 @@ function buildResultDialog(hand, members, settle, viewerSeat) {
       win: delta === null ? won > 0 : delta > 0,
       amount: delta === null ? '—' : signedChips(delta),
       amountClass: delta === null ? 'amount-none' : delta > 0 ? 'amount-win' : 'amount-lose',
-      detail: won > 0 ? '赢得底池 ' + format.chips(won) : refunded > 0 ? '退回 ' + format.chips(refunded) : ''
+      detail: won > 0 ? '赢得底池 ' + format.chips(won) : refunded > 0 ? '退回 ' + format.chips(refunded) : '',
+      cards: shown ? cardUtil.views(shown) : null,
+      typeName: change && change.category && TYPE_NAMES[change.category] ? TYPE_NAMES[change.category] : null,
+      stackText: player ? '剩余 ' + format.chips(player.stack) : '',
+      revealText: shown ? '' : '未摊牌'
     };
   });
   // 赢家在最前；都没有金额（老快照）时按座位顺序，不假装知道谁赢得多。
