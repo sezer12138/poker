@@ -22,6 +22,8 @@ interface Running {
   exited: Promise<{code: number | null; signal: string | null}>;
   /** 等到 stdout 里出现某行，超时抛错。 */
   waitForText(text: string, budgetMs?: number): Promise<string>;
+  /** 等到 stderr 里出现某行，超时抛错。stderr 与 stdout 是两条流，先后没有保证。 */
+  waitForStderr(text: string, budgetMs?: number): Promise<string>;
 }
 
 function start(env: Record<string, string>): Running {
@@ -50,6 +52,15 @@ function start(env: Record<string, string>): Running {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
       throw new Error(`等待「${text}」超时：${stdout}${stderr}`);
+    },
+    async waitForStderr(text, budgetMs = 15000) {
+      const until = Date.now() + budgetMs;
+      while (Date.now() < until) {
+        if (stderr.includes(text)) return stderr;
+        if (child.exitCode !== null) throw new Error(`进程已退出（${child.exitCode}）：${stdout}${stderr}`);
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      throw new Error(`等待 stderr「${text}」超时：${stdout}${stderr}`);
     },
   };
 }
@@ -114,7 +125,9 @@ describe('入口进程', () => {
       POKER_BOT_THINK_MS: '10',
     });
     try {
-      await proc.waitForText('已启动');
+      // 这条警告走 stderr，而「已启动」走 stdout：两条流没有先后保证，
+      // 只等 stdout 会在负载高的时候读到空的 stderr（曾经偶发假失败）。
+      await proc.waitForStderr('生产模式忽略 POKER_SETTLE_MS / POKER_BOT_THINK_MS');
       assert.match(proc.stderr, /生产模式忽略 POKER_SETTLE_MS \/ POKER_BOT_THINK_MS/);
     } finally {
       proc.child.kill('SIGKILL');

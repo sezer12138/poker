@@ -38,7 +38,9 @@ npm run typecheck         # 唯一的类型检查入口（Node 的类型剥离�
 - 9 人桌无限注德州扑克，按钮位/小盲/大盲按规则轮转（含单挑时的庄家即小盲、翻牌前先行动）。
 - 支持全押、边池（主池 + 多个边池）、短码全押不构成完整加注；平局均分，余下的零头按
   「按钮左侧最近的赢家」依次发放。
-- 每手 30 秒行动时限、超时自动弃牌；开手前有 5 秒的公平贡献窗口；结算展示 4 秒后自动开下一手。
+- 每次行动 90 秒，超时自动过牌或弃牌；开手前有 5 秒的公平贡献窗口。
+- 每手结束弹出结算窗，逐座位列出本手净输赢：所有真人点「确认，继续」后立刻开下一手，
+  有人没点则由 8 秒兜底窗口自动继续，不会把牌桌卡住。
 - 筹码输光即淘汰，最后一人获胜，房主可以再来一局（上一场的核验数据随场次重置）。
 - 机器人（`packages/bot`）按牌力与底池赔率决策，读不到任何人的底牌。
 
@@ -86,7 +88,7 @@ docs/verification       每一步真实跑过的命令与输出，含未验证�
 | `POKER_WECHAT_APPID` / `POKER_WECHAT_SECRET` | — | 微信登录；缺省时 `/api/auth/wechat` 返回明确的中文错误 |
 | `POKER_SESSION_TTL_DAYS` | `7` | 登录态有效期 |
 | `POKER_ALLOWED_ORIGINS` | 空（不校验） | WebSocket 的 `Origin` 白名单，逗号分隔；小程序不带 `Origin`，不受影响 |
-| `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` | `4000` / `1000` | **仅开发模式**：结算展示与机器人思考时长（毫秒）。生产模式一律忽略并打印提示，避免把对局压到玩家来不及反应 |
+| `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` | `8000` / `2500` | **仅开发模式**：结算兜底窗口与机器人思考时长（毫秒）。生产模式一律忽略并打印提示，避免把对局压到玩家来不及反应 |
 
 `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` 只服务于自动化（`npm run smoke` 靠它们把一场牌局压进几秒），
 不需要在正常开发或部署时设置。
@@ -107,7 +109,7 @@ npm test              # 全部测试
 npm run test:engine   # 只跑规则引擎
 npm run test:exhaustive   # 引擎穷举回归（较慢）
 npm run demo          # 命令行跑一整场机器人对局
-npm run smoke         # 真起一个服务端，走完整 HTTP + WebSocket 流程（40 项检查）
+npm run smoke         # 真起一个服务端，走完整 HTTP + WebSocket 流程（42 项检查）
 ```
 
 `node --test` 自带用例筛选：
