@@ -38,16 +38,17 @@ describe('倒计时与超时', () => {
     assert.ok(committed.fairness.deckCommitment !== null);
   });
 
-  it('行动窗口恰好 30 秒，超时自动弃牌并写入事件', async () => {
+  it('行动窗口恰好 90 秒，超时自动弃牌并写入事件', async () => {
     const {roomId, players} = await humanTable();
     await contributeAll(server, roomId, players);
     const actor = await waitingActor(server, roomId, players);
     const name = actor!.view.you.name;
+    assert.equal((await server.view(players[0]!, roomId)).actionTimeoutMs, 90000, '视图要告诉客户端行动时限');
 
-    await server.clock.advance(29999);
+    await server.clock.advance(89999);
     await drain();
     const waiting = (await server.view(players[0]!, roomId));
-    assert.equal(waiting.hand.street, 'preflop', '第 29999 毫秒仍应等玩家行动');
+    assert.equal(waiting.hand.street, 'preflop', '第 89999 毫秒仍应等玩家行动');
     assert.equal(waiting.fairness.stage, 'playing');
 
     await server.clock.advance(1);
@@ -67,7 +68,7 @@ describe('倒计时与超时', () => {
     const first = await waitingActor(server, roomId, players);
     await act(server, roomId, first!.session, {type: 'call'});
 
-    await server.clock.advance(29999);
+    await server.clock.advance(89999);
     await drain();
     const view = (await server.view(players[0]!, roomId));
     assert.equal(view.hand.street, 'preflop', '窗口应从最后一次行动重新计时');
@@ -78,7 +79,7 @@ describe('倒计时与超时', () => {
     assert.equal(second!.legal.check, true, '大盲在无人加注时可以过牌');
   });
 
-  it('结算后 4 秒开始下一手，手号递增且重新开启贡献窗口', async () => {
+  it('没人点确认时，结算 8 秒后自动开始下一手，手号递增且重新开启贡献窗口', async () => {
     const {roomId, players} = await humanTable();
     await contributeAll(server, roomId, players);
     const actor = await waitingActor(server, roomId, players);
@@ -86,9 +87,9 @@ describe('倒计时与超时', () => {
 
     const settled = (await server.view(players[0]!, roomId));
     assert.equal(settled.fairness.stage, 'settled');
-    assert.equal(settled.nextHandAt! - settled.serverTime, 4000);
+    assert.equal(settled.nextHandAt! - settled.serverTime, 8000);
 
-    await server.clock.advance(3999);
+    await server.clock.advance(7999);
     await drain();
     assert.equal((await server.view(players[0]!, roomId)).fairness.handNo, 1);
 
@@ -107,7 +108,7 @@ describe('倒计时与超时', () => {
     const actor = await waitingActor(server, roomId, players);
     // Fold, then wait through the whole next-hand window without contributing.
     await act(server, roomId, actor!.session, {type: 'fold'});
-    await server.clock.advance(4000);
+    await server.clock.advance(8000);
     await drain();
     await server.clock.advance(5000);
     await drain();

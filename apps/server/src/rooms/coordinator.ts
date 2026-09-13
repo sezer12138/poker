@@ -1,4 +1,4 @@
-import {ACTION_TIMEOUT_MS, BOT_THINK_MS, CONTRIBUTE_WINDOW_MS, IDEMPOTENCY_CAP, IDEMPOTENCY_MAX_BYTES, MAX_MEMBERS, ROOM_IDLE_MS, SETTLE_DELAY_MS} from '../config.ts';
+import {ACTION_TIMEOUT_MS, BOT_JITTER_MS, BOT_THINK_MS, CONTRIBUTE_WINDOW_MS, IDEMPOTENCY_CAP, IDEMPOTENCY_MAX_BYTES, MAX_MEMBERS, ROOM_IDLE_MS, SETTLE_DELAY_MS} from '../config.ts';
 import {AppError, toAppError} from '../errors.ts';
 import {randomFloat, randomHex, roomCode, uuid} from '../ids.ts';
 import type {PersistedRoom, Storage} from '../storage/storage.ts';
@@ -308,7 +308,11 @@ export class Coordinator {
       const spec: TimerSpec = {kind: 'action', handNo: actionHandNo, seat: actor};
       set.add(room.deadlines.action - now, () => this.fire(room.id, spec));
       if (room.members.find(member => member.seat === actor)?.bot === true) {
-        set.add(this.botThinkMs, () => this.fireBot(room.id, actor, actionHandNo));
+        // 固定时长的机器人一眼就能看出是机器；加一点抖动让它像在思考。
+        // 振幅跟着 botThinkMs 缩放：开发模式把它压到 10ms 时，抖动也必须跟着变小，
+        // 否则冒烟脚本每手会凭空多出几秒真实等待（见 examples/smoke.ts）。
+        const jitter = Math.floor(this.random() * Math.min(BOT_JITTER_MS, this.botThinkMs));
+        set.add(this.botThinkMs + jitter, () => this.fireBot(room.id, actor, actionHandNo));
       }
     }
 

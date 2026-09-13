@@ -1,6 +1,6 @@
 import {blindLevel, playerView} from '../../../../packages/poker-engine/src/index.ts';
 import type {HandView} from '../../../../packages/poker-engine/src/index.ts';
-import {EVENTS_VIEW_CAP, HISTORY_VIEW_CAP} from '../config.ts';
+import {ACTION_TIMEOUT_MS, EVENTS_VIEW_CAP, HISTORY_VIEW_CAP} from '../config.ts';
 import type {PersistedRoom, PublicEvent, RoomStatus} from '../storage/storage.ts';
 import type {FairnessStageName} from '../storage/storage.ts';
 
@@ -71,6 +71,8 @@ export interface RoomView {
   deadline: number | null;
   /** 下一手的开始时间；不在结算等待中时为 null。 */
   nextHandAt: number | null;
+  /** 行动时限本身（毫秒）。客户端画倒计时进度条要用它，不能自己写死一个数。 */
+  actionTimeoutMs: number;
   notice: string;
   serverTime: number;
 }
@@ -166,6 +168,7 @@ export function roomView(room: PersistedRoom, viewerId: string, options: RoomVie
     events: room.events.slice(-EVENTS_VIEW_CAP),
     deadline: room.deadlines.action,
     nextHandAt: room.deadlines.nextHand,
+    actionTimeoutMs: ACTION_TIMEOUT_MS,
     notice: room.notice,
     serverTime: options.now ?? Date.now(),
   };

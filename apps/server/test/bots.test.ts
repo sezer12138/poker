@@ -64,21 +64,22 @@ describe('机器人', () => {
     return null;
   }
 
-  it('机器人在 1 秒思考后自行行动，行动前不抢跑', async () => {
+  it('机器人思考 2.5 秒以上才自行行动，行动前不抢跑', async () => {
     const {roomId, players} = await tableWithBot();
     const view = await reachBotTurn(roomId, players);
     assert.ok(view !== null, '机器人应该拿到行动权');
 
-    await server.clock.advance(999);
+    // 思考时长 = 2500ms + 0..2000ms 抖动：2499 一定还没到，4500 一定已经出手。
+    await server.clock.advance(2499);
     await drain();
     const waiting = (await server.view(players[0]!, roomId));
-    assert.equal(waiting.hand.actor, botSeat(roomId), '第 999 毫秒机器人还在思考');
+    assert.equal(waiting.hand.actor, botSeat(roomId), '第 2499 毫秒机器人还在思考');
     assert.equal(waiting.events.length, view.events.length, '思考期间不应产生事件');
 
-    await server.clock.advance(1);
+    await server.clock.advance(2001);
     await drain();
     const moved = (await server.view(players[0]!, roomId));
-    assert.ok(moved.events.length > view.events.length, '第 1000 毫秒机器人必须行动');
+    assert.ok(moved.events.length > view.events.length, '第 4500 毫秒机器人必须行动');
     assert.ok(
       moved.events.length > 0 && moved.hand.actor !== botSeat(roomId) || moved.hand.street === 'settled',
       '机器人行动后行动权应转交或直接摊牌',
@@ -112,16 +113,20 @@ describe('机器人', () => {
     const {roomId, players} = await tableWithBot();
     const view = await reachBotTurn(roomId, players);
     assert.ok(view !== null);
-    await server.clock.advance(1000);
+    // 先把机器人自己那一步走完（思考上限 4500ms），行动权才会落到别人手上。
+    await server.clock.advance(4500);
     await drain();
     // Someone else is thinking (or the hand is over): a bot action must be a no-op.
     const before = structuredClone(server.coordinator.get(roomId)!);
     const seat = botSeat(roomId);
-    if (before.tournament!.hand!.actor !== seat && before.tournament!.hand!.street !== 'settled') {
-      applyBotAction(before, seat, {now: 1});
-      const after = server.coordinator.get(roomId)!;
-      assert.equal(JSON.stringify(before.events), JSON.stringify(after.events));
-    }
+    const hand = before.tournament!.hand!;
+    // 先确认前置条件真的成立，否则下面的断言会被整段跳过、这条测试就是在空转。
+    assert.ok(hand.street === 'settled' || hand.actor !== seat, '机器人那一步已经走完，行动权不该还在它手上');
+    const events = JSON.stringify(before.events);
+    applyBotAction(before, seat, {now: 1});
+    const after = server.coordinator.get(roomId)!;
+    assert.equal(JSON.stringify(before.events), events, '不是自己的行动点，不能落任何事件');
+    assert.equal(JSON.stringify(before.events), JSON.stringify(after.events), '也不能碰到真实房间');
   });
 
   it('决策层失败时退回超时动作，绝不卡住牌桌', async () => {
