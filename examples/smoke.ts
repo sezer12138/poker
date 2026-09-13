@@ -80,6 +80,11 @@ async function spawnServer(): Promise<{base: string; stop: () => Promise<void>}>
       POKER_HOST: '127.0.0.1',
       POKER_PORT: '0',
       POKER_DATA_DIR: dataDir,
+      // 打到分出胜负才解锁赛后核验，而每手之间有 4 秒结算展示；机器人一直弃牌时
+      // 一场可能几十手，按生产节奏就是好几分钟。这两个时长只在开发模式下可改，
+      // 生产模式会忽略（见 config.ts），所以压缩节奏不会改变要验证的行为。
+      POKER_SETTLE_MS: '40',
+      POKER_BOT_THINK_MS: '10',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -206,32 +211,39 @@ async function checkHttp(base: string): Promise<void> {
   ok('视图里没有 serverSeed，也没有未公开的牌序',
     !JSON.stringify(contributed.body).includes('serverSeed') && !JSON.stringify(contributed.body).includes('"deck"'));
 
-  let dealt = contributed.body;
-  const dealDeadline = Date.now() + 15000;
-  while (dealt.hand === null && Date.now() < dealDeadline) {
-    await sleep(250);
-    dealt = (await call('GET', `/api/rooms/${roomId}`, {token})).body;
-  }
-  ok('发牌后 hand 出现', dealt.hand !== null);
-  ok('本人底牌 2 张、别人底牌为空（视图就是隐私边界）',
-    dealt.hand?.players?.find((player: any) => player.seat === 0)?.hole.length === 2 &&
-    dealt.hand.players.filter((player: any) => player.seat !== 0).every((player: any) => player.hole.length === 0));
-  ok('行动倒计时可用（deadline − serverTime）',
-    typeof dealt.deadline === 'number' && dealt.deadline > dealt.serverTime,
-    `${Math.round((dealt.deadline - dealt.serverTime) / 1000)} 秒`);
-
   const locked = await call('GET', `/api/rooms/${roomId}/audit`, {token});
   ok('比赛没结束不给核验（403 AUDIT_LOCKED）',
     locked.status === 403 && locked.body?.error?.code === 'AUDIT_LOCKED', locked.body?.error?.message);
 
-  // 打完这一场：人类一路全押，单挑几十秒内结束。
+  // 打完这一场：人类一路全押，同时把「轮到自己时视图长什么样」的几条契约断言采集下来。
+  // 之所以边打边采集而不是固定抽一帧：节奏压缩后机器人一弃牌整手就结束了，
+  // 固定抽样很容易正好落在已经结算的那一手（那时 deadline 为 null、摊牌的一手底牌也会公开），
+  // 那不是契约被违反，只是抽到了另一个同样合法的状态。
+  // 墙钟兜底，外加盯版本号：长时间不动说明是真卡住而不是慢，把现场写进失败信息。
   let final: any = null;
-  for (let step = 0; step < 500 && final === null; step += 1) {
+  let reason = '超时未结束';
+  const matchDeadline = Date.now() + 60_000;
+  let lastVersion = -1;
+  let lastChange = Date.now();
+  let dealingSeen = false;
+  let actingViews = 0;
+  let privacyViolations = 0;
+  let maxSecondsLeft = 0;
+  while (Date.now() < matchDeadline) {
     const current = (await call('GET', `/api/rooms/${roomId}`, {token})).body;
+    if (current.version !== lastVersion) {
+      lastVersion = current.version;
+      lastChange = Date.now();
+    }
     if (current.status === 'finished') {
       final = current;
       break;
     }
+    if (Date.now() - lastChange > 20_000) {
+      reason = `房间停在 v${current.version} 已有 20 秒：status=${current.status} stage=${current.fairness?.stage} hand=${current.hand?.street} actor=${current.hand?.actor}`;
+      break;
+    }
+    if (current.hand !== null) dealingSeen = true;
     if (current.fairness?.owed) {
       await command(roomId, {
         type: 'contribute',
@@ -242,13 +254,26 @@ async function checkHttp(base: string): Promise<void> {
     }
     const hand = current.hand;
     if (hand && hand.actor === 0 && hand.legal) {
+      // 这一帧就是「轮到我」：本人 2 张、别人 0 张、倒计时指向未来。
+      actingViews += 1;
+      const mine = hand.players.find((player: any) => player.seat === 0);
+      const others = hand.players.filter((player: any) => player.seat !== 0);
+      if (mine?.hole.length !== 2 || !others.every((player: any) => player.hole.length === 0)) privacyViolations += 1;
+      if (typeof current.deadline === 'number' && current.deadline > current.serverTime) {
+        maxSecondsLeft = Math.max(maxSecondsLeft, Math.round((current.deadline - current.serverTime) / 1000));
+      }
       const action = hand.legal.allIn ? {type: 'allIn'} : hand.legal.check ? {type: 'check'} : {type: 'call'};
       await command(roomId, {type: 'action', action, expectedVersion: current.version});
       continue;
     }
-    await sleep(300);
+    await sleep(50);
   }
-  ok('比赛能打到结束', final !== null, final ? `${final.completedHands} 手，赢家座位 ${final.winner}` : '超时未结束');
+  ok('发牌后 hand 出现', dealingSeen);
+  ok('本人底牌 2 张、别人底牌为空（视图就是隐私边界）',
+    actingViews > 0 && privacyViolations === 0,
+    `轮到自己 ${actingViews} 次，越界 ${privacyViolations} 次`);
+  ok('行动倒计时可用（deadline − serverTime）', maxSecondsLeft > 0, `${maxSecondsLeft} 秒`);
+  ok('比赛能打到结束', final !== null, final ? `${final.completedHands} 手，赢家座位 ${final.winner}` : reason);
   ok('结束后 nextHandAt 归零', final ? final.nextHandAt === null : false);
 
   const audit = await call('GET', `/api/rooms/${roomId}/audit`, {token});
