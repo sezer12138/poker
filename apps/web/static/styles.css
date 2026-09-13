@@ -29,6 +29,14 @@
   box-sizing: border-box;
 }
 
+/* hidden 属性必须盖过作者样式：.dialog / .actions__row / .banner--tip 都写了 display，
+   而作者样式一律压过 UA 的 [hidden]{display:none}——不 !important 的话，结算弹窗的
+   遮罩会永久罩住牌桌（哪怕它只是空卡片），观战时的操作按钮也藏不住。
+   将来若真要让某个元素在 hidden 下仍显示，先想清楚为什么。 */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;

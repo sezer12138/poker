@@ -53,6 +53,13 @@ test('页面引用的脚本与样式文件真实存在', () => {
   assert.equal(/@import|url\(\s*['"]?https?:/.test(css), false, '样式不得引用外部资源');
 });
 
+test('[hidden] 必须盖过作者样式，空弹窗不能遮住牌桌', () => {
+  // 结算弹窗、操作按钮行、新手引导条都写了 display，作者样式压过 UA 的 [hidden]。
+  // 少了这条 !important，隐藏只会在 DOM 里发生，屏幕上照样罩着。
+  const css = read('static/styles.css');
+  assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important/, 'styles.css 缺少 [hidden] 覆盖规则');
+});
+
 test('每个页面的主题色与样式表的主色一致', () => {
   for (const [page] of PAGES) {
     const html = read(page);
