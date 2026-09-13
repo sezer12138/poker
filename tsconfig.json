@@ -7,7 +7,9 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
+    "allowJs": true,
+    "checkJs": false,
     "types": ["node"]
   },
-  "include": ["packages", "examples"]
+  "include": ["packages", "apps", "examples"]
 }
