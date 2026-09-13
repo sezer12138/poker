@@ -1,0 +1,1 @@
+{"private":true,"type":"module","scripts":{"test":"node --test packages/poker-engine/test/*.test.ts","test:exhaustive":"node --test packages/poker-engine/test/exhaustive/*.test.ts","typecheck":"tsc --noEmit","demo":"node examples/simulate.ts"},"devDependencies":{"@types/node":"22.20.2","typescript":"7.0.2"}}
