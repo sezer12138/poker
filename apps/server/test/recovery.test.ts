@@ -169,7 +169,7 @@ describe('重启恢复', () => {
       for (const seat of seats) round = contribute(round, seat, nonce());
       const finalized = finalizeRound(round, seats);
       const deck = finalized.deck;
-      room.fairnessStage = {stage: 'dealing', handNo, seats, round: finalized.round, deck, dealt: null, button: null};
+      room.fairnessStage = {stage: 'dealing', handNo, seats, round: finalized.round, deck, dealt: null, button: null, settleAcks: []};
       await server.storage.saveRoom(room);
 
       server = await restartServer(server);

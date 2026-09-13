@@ -30,6 +30,12 @@ export interface FairnessStage {
   dealt: DealtCards | null;
   /** Button seat of this hand, needed to replay the deal order in the audit. */
   button: number | null;
+  /**
+   * Seats that confirmed the result of this (already settled) hand. Lives on the stage
+   * rather than on the deadlines bag because beginHandFlow replaces the whole stage
+   * object: the confirmations of the previous hand cannot leak into the next one.
+   */
+  settleAcks: number[];
 }
 
 export interface FairnessRecord {
@@ -111,6 +117,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Rejects a snapshot that is not shaped like a room before it can reach the
  * coordinator. A corrupt file must never take the server down.
+ *
+ * 除了校验，它还把后加字段补齐（老快照里没有 `settleAcks`）——缺一个数组字段
+ * 就丢掉整间房太重，而留 `undefined` 又会让结算确认门在读取时炸掉。
  */
 export function assertPersistedRoom(value: unknown): PersistedRoom {
   if (!isRecord(value)) throw new Error('房间快照必须是对象');
@@ -126,6 +135,11 @@ export function assertPersistedRoom(value: unknown): PersistedRoom {
   if (!Array.isArray(value['idempotency'])) throw new Error('幂等记录列表非法');
   if (!isRecord(value['deadlines'])) throw new Error('截止时间非法');
   if (!Number.isSafeInteger(value['seq'])) throw new Error('事件序号非法');
+  const stage = value['fairnessStage'];
+  if (isRecord(stage) && !Array.isArray(stage['settleAcks'])) {
+    // 结算确认门是后加的：老快照没有这个字段，补空数组即可（还未结算就等于没人确认）。
+    stage['settleAcks'] = [];
+  }
   return value as unknown as PersistedRoom;
 }
 

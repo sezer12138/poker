@@ -45,6 +45,7 @@ function shortStackedRoom(): {room: PersistedRoom; seats: number[]; handNo: numb
     deck: finalized.deck as Card[],
     dealt: null,
     button: null,
+    settleAcks: [],
   };
 
   const room: PersistedRoom = {

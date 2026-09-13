@@ -73,6 +73,11 @@ export interface RoomView {
   nextHandAt: number | null;
   /** 行动时限本身（毫秒）。客户端画倒计时进度条要用它，不能自己写死一个数。 */
   actionTimeoutMs: number;
+  /**
+   * 结算确认门。只在「这一手已结算、比赛仍在进行」时非空——比赛结束后弹确认框
+   * 是没有意义的（确认命令不会生效）。客户端据此弹结算窗并显示谁已经点了确认。
+   */
+  settle: {handNo: number; acks: number[]; required: number[]} | null;
   notice: string;
   serverTime: number;
 }
@@ -169,6 +174,14 @@ export function roomView(room: PersistedRoom, viewerId: string, options: RoomVie
     deadline: room.deadlines.action,
     nextHandAt: room.deadlines.nextHand,
     actionTimeoutMs: ACTION_TIMEOUT_MS,
+    settle:
+      room.status === 'playing' && stage !== null && stage.stage === 'settled'
+        ? {
+            handNo: stage.handNo,
+            acks: [...(stage.settleAcks ?? [])].sort((a, b) => a - b),
+            required: stage.seats.filter(seat => !isBotSeat(room, seat)),
+          }
+        : null,
     notice: room.notice,
     serverTime: options.now ?? Date.now(),
   };

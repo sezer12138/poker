@@ -80,10 +80,12 @@ async function spawnServer(): Promise<{base: string; stop: () => Promise<void>}>
       POKER_HOST: '127.0.0.1',
       POKER_PORT: '0',
       POKER_DATA_DIR: dataDir,
-      // 打到分出胜负才解锁赛后核验，而每手之间有 4 秒结算展示；机器人一直弃牌时
+      // 打到分出胜负才解锁赛后核验，而每手之间有 8 秒结算展示；机器人一直弃牌时
       // 一场可能几十手，按生产节奏就是好几分钟。这两个时长只在开发模式下可改，
       // 生产模式会忽略（见 config.ts），所以压缩节奏不会改变要验证的行为。
-      POKER_SETTLE_MS: '40',
+      // 结算窗留 400ms（脚本轮询 50ms 一次）：足够稳定地看到并以真人身份点一次确认，
+      // 点完服务端立刻开下一手，反而比等兜底更快。
+      POKER_SETTLE_MS: '400',
       POKER_BOT_THINK_MS: '10',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -229,6 +231,9 @@ async function checkHttp(base: string): Promise<void> {
   let actingViews = 0;
   let privacyViolations = 0;
   let maxSecondsLeft = 0;
+  let ackedHandNo = 0;
+  let acks = 0;
+  let ackFailures = 0;
   while (Date.now() < matchDeadline) {
     const current = (await call('GET', `/api/rooms/${roomId}`, {token})).body;
     if (current.version !== lastVersion) {
@@ -244,6 +249,15 @@ async function checkHttp(base: string): Promise<void> {
       break;
     }
     if (current.hand !== null) dealingSeen = true;
+    // 结算确认门：真人点「确认」才立刻开下一手，没人点就等兜底。这里顺带走一遍
+    // 客户端真正会走的路径——命令不合法的话这一行会当场把冒烟打红。
+    if (current.settle !== null && current.settle.handNo !== ackedHandNo && current.settle.required.includes(0)) {
+      ackedHandNo = current.settle.handNo;
+      acks += 1;
+      const acked = await command(roomId, {type: 'settleAck', handNo: current.settle.handNo});
+      if (acked.status !== 200) ackFailures += 1;
+      continue;
+    }
     if (current.fairness?.owed) {
       await command(roomId, {
         type: 'contribute',
@@ -273,6 +287,8 @@ async function checkHttp(base: string): Promise<void> {
     actingViews > 0 && privacyViolations === 0,
     `轮到自己 ${actingViews} 次，越界 ${privacyViolations} 次`);
   ok('行动倒计时可用（deadline − serverTime）', maxSecondsLeft > 0, `${maxSecondsLeft} 秒`);
+  // 不断言「一定确认过」（结算窗是时间敏感的），但确认过就必须一次都没失败。
+  ok('结算确认门可用（真人点确认，命令一路 200）', ackFailures === 0, `确认 ${acks} 次，被拒 ${ackFailures} 次`);
   ok('比赛能打到结束', final !== null, final ? `${final.completedHands} 手，赢家座位 ${final.winner}` : reason);
   ok('结束后 nextHandAt 归零', final ? final.nextHandAt === null : false);
 

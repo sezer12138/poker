@@ -3,7 +3,7 @@ import {AppError, toAppError} from '../errors.ts';
 import {randomFloat, randomHex, roomCode, uuid} from '../ids.ts';
 import type {PersistedRoom, Storage} from '../storage/storage.ts';
 import {applyBotAction} from './bots.ts';
-import {applyCommand, applyDeal, applyTimer, parseCommand, pauseMatch} from './commands.ts';
+import {applyCommand, applyDeal, applyTimer, parseCommand, pauseMatch, skipsVersionCheck} from './commands.ts';
 import type {CommandContext, TimerSpec} from './commands.ts';
 import type {Connection, Hub} from './hub.ts';
 import {roomView} from './roomview.ts';
@@ -191,7 +191,9 @@ export class Coordinator {
       throw new AppError('FORBIDDEN', '你不是该房间成员');
     }
     const expected = body['expectedVersion'];
-    if (command.type !== 'contribute' && expected !== undefined) {
+    // 贡献与结算确认是「集齐就推进」的命令：多人几乎同时提交时，后到者拿到的版本
+    // 必然是旧的，卡版本只会让最后一个人反复重试。它们的正确性由手号与幂等保证。
+    if (!skipsVersionCheck(command) && expected !== undefined) {
       if (!Number.isSafeInteger(expected)) throw new AppError('INVALID_INPUT', 'expectedVersion 非法');
     }
 
@@ -203,17 +205,22 @@ export class Coordinator {
       // 会让拿到别人 requestId 的人收到别人的牌。没有 userId 的旧记录一律不回放。
       const replay = room.idempotency.find(([id, record]) => id === requestId && record.userId === userId);
       if (replay) return JSON.parse(replay[1].viewJson);
-      if (command.type !== 'contribute' && expected !== undefined && expected !== room.version) {
+      if (!skipsVersionCheck(command) && expected !== undefined && expected !== room.version) {
         throw new AppError('VERSION_CONFLICT');
       }
 
       const draft = structuredClone(room);
       draft.version = room.version + 1;
       const ctx = this.context();
+      let applied: boolean;
       try {
-        applyCommand(draft, userId, command, ctx);
+        applied = applyCommand(draft, userId, command, ctx);
       } catch (error) {
         throw toAppError(error);
+      }
+      if (!applied) {
+        // 合法但无事可做的命令（迟到的结算确认）：不落盘、不自增版本，只把当前视图回给他。
+        return JSON.parse(JSON.stringify(roomView(room, userId, this.viewOptions(roomId, ctx.now))));
       }
       const body_ = JSON.stringify(roomView(draft, userId, this.viewOptions(draft.id, ctx.now)));
       draft.idempotency.push([requestId, {viewJson: body_, version: draft.version, at: ctx.now, userId}]);
