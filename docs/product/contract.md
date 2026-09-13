@@ -9,6 +9,8 @@ Node 原生 TypeScript 服务端，HTTP+WebSocket，静态 HTML/CSS/JS 浏览器
 
 > 本次变更为产品需求的正式修订（原契约写的是「30秒行动 / 结算展示4秒」）：行动窗口 30→90 秒、结算兜底 4→8 秒、机器人思考 1000→2500 毫秒（并新增抖动），并新增 `actionTimeoutMs`、`settle` 两个只读字段与 `settleAck` 命令。既有字段一律不变，旧客户端仍可只读兼容。背景音乐为纯客户端行为（web 用 Web Audio、小程序用 `wx.createWebAudioContext`），不属于本契约。
 
+> 追加修订（结算亮牌）：`settle.changes` 每项新增可选的 `cards`/`category` 两个字段，并第一次明确「赢家总是亮、弃牌者不亮」的亮牌口径。同样是纯增量——两个键在没亮牌时不出现，老客户端不读它们就完全不受影响；服务端升级前落盘的老快照 `changes` 仍为 `[]`，一样不亮牌。计算在 `apps/server/src/rooms/showdown.ts`，引擎（已冻结）不参与改动。
+
 ## HTTP JSON 契约
 所有成功响应直接返回对象；失败 `{error:{code,message}}` + HTTP状态。除auth、health外均需 `Authorization: Bearer <token>`。requestId须新UUID，不因重试改变。
 - GET /api/health → {ok:true,mode:'development'|'production',auth:'guest'|'wechat'}
@@ -36,12 +38,12 @@ WebSocket /ws：打开后发送 `{type:'subscribe',token,roomId}`（不在URL带
  deadline:number|null, nextHandAt:number|null, serverTime:number,
  actionTimeoutMs:number,
  fairness:null|{handNo:number,commitment:string,deckCommitment:string|null,contributors:number[],owed:boolean,deadline:number},
- settle:null|{handNo:number,acks:number[],required:number[],changes:[{seat:number,delta:number}]},
+ settle:null|{handNo:number,acks:number[],required:number[],changes:[{seat:number,delta:number,cards?:number[],category?:string|null}]},
  events:[{seq:number,handNo:number,type:string,text:string}],
  notice:string
 }
 ```
-`actionTimeoutMs` 是当前行动窗口长度（毫秒），客户端画倒计时条只读它，不硬编码。`settle` 只在「一手已经结算、比赛仍在进行」的窗口内非空：`required` 是本手需要确认的真人座位（机器人不在内），`acks` 是已确认的座位，`changes` 是每座位本手净输赢（结算后的筹码减去带进本手的筹码，见服务端 `seatDeltas`）；比赛已结束时为 `null`（终局不再要求确认）。服务端升级前落盘的老快照没有这份快照数据时 `changes` 为 `[]`，客户端只显示谁赢了底池，不自行推算金额。
+`actionTimeoutMs` 是当前行动窗口长度（毫秒），客户端画倒计时条只读它，不硬编码。`settle` 只在「一手已经结算、比赛仍在进行」的窗口内非空：`required` 是本手需要确认的真人座位（机器人不在内），`acks` 是已确认的座位，`changes` 是每座位本手净输赢（结算后的筹码减去带进本手的筹码，见服务端 `seatDeltas`）；比赛已结束时为 `null`（终局不再要求确认）。服务端升级前落盘的老快照没有这份快照数据时 `changes` 为 `[]`，客户端只显示谁赢了底池，不自行推算金额。`changes` 每项还可带 `cards`（该座位亮出的牌）与 `category`（牌型类别码）：亮牌口径是**赢家总是亮、弃牌者不亮**——公共牌发满五张且不止一人未弃牌（摊牌）时每位未弃牌者都亮「最佳五张 + 牌型」；弃牌结束时只有唯一赢家有，底牌不足五张时 `cards` 直接是底牌、`category` 为 `null`。**没亮的座位这两个键都不出现**（不是 null），客户端据「有没有 `cards`」区分亮牌与「未摊牌」。类别码是稳定契约，9 个取值：`straightFlush`/`quads`/`fullHouse`/`flush`/`straight`/`trips`/`twoPair`/`pair`/`highCard`；中文牌型名由客户端映射（web 端把 A-K-Q-J-10 的同花顺显示为「皇家同花顺」，小程序端归入「同花顺」，各自的规则页口径）。亮牌计算在服务端（`rooms/showdown.ts`，只调用引擎已导出的 `evaluate`/`compare`，引擎冻结不改）；`cards` 只包含该亮的座位，弃牌者的底牌不进任何响应。每个座位的剩余筹码客户端直接读 `hand.players[].stack`（引擎结算时已把奖池与退回写进 stack），不另发字段。
 HandView与 packages/poker-engine/src/view.ts 一致。牌编码suit=floor(card/13)（♣♦♥♠），rank=card%13+2。未公开hole为空数组。筹码显示来自hand.players，淘汰成员不在本手时显示0，等待时1000。牌桌显示主池/边池结果、按钮合法状态、跟注金额、raiseTo累计目标及追加量。其他玩家/观众legal=null。status playing时fairness存在且deckCommitment=null代表正在收集随机贡献；`owed` 是服务端算出的「这一手要不要我贡献」（即我是否参加本手），客户端一律只认它，不自行推测自己该不该提交——已淘汰的座位不该每手吃一个403。浏览器用crypto.getRandomValues(32字节)，微信wx.getRandomValues；不可用则不提交、显示使用公开默认贡献，禁止Math.random替代。保留承诺到本地存储用于赛后对照。
 
 ## Fairness 模块（packages/fairness/src/index.ts）
