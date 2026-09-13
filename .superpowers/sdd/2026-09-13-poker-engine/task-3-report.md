@@ -45,3 +45,11 @@ and `git diff --check` reported no whitespace errors.
 - Zero-contribution settlement and exact chip conservation
 - Invalid seats, duplicate seats, unsafe or invalid chip amounts, empty eligibility,
   duplicate eligibility, missing or invalid ranks, and invalid button values
+
+## Review fix
+
+Added a regression for sparse rank arrays and before/after snapshots for invalid
+contribution, pot, rank, and button inputs. The focused RED run reported 7 passing
+tests and 1 failure because a sparse rank did not throw. Rank validation now uses
+indexed iteration, which observes array holes as `undefined` and rejects them with
+`RuleError` code `INVALID_INPUT`.

@@ -68,7 +68,9 @@ function validatePot(pot: Pot): void {
 
 function validateRank(rank: readonly number[] | undefined): asserts rank is readonly number[] {
   if (!Array.isArray(rank) || rank.length === 0) invalid('Every eligible player must have a rank.');
-  if (rank.some((value) => !Number.isSafeInteger(value))) invalid('Ranks must contain safe integers.');
+  for (let index = 0; index < rank.length; index++) {
+    if (!Number.isSafeInteger(rank[index])) invalid('Ranks must contain safe integers.');
+  }
 }
 
 function clockwiseDistance(button: SeatId, seat: SeatId): number {

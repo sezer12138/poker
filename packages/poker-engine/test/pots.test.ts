@@ -140,10 +140,12 @@ test('malformed contributions reject without losing chips silently', () => {
   ];
 
   for (const players of invalidPlayers) {
+    const before = structuredClone(players);
     assert.throws(
       () => buildPots(players),
       (error) => error instanceof RuleError && error.code === 'INVALID_INPUT',
     );
+    assert.deepEqual(players, before);
   }
 });
 
@@ -159,21 +161,52 @@ test('malformed pots and ranks reject instead of dropping a pot', () => {
   ];
 
   for (const pots of invalidPots) {
+    const beforePots = structuredClone(pots);
+    const beforeRanks = structuredClone(ranks);
     assert.throws(
       () => distribute(pots, ranks, 0),
       (error) => error instanceof RuleError && error.code === 'INVALID_INPUT',
     );
+    assert.deepEqual(pots, beforePots);
+    assert.deepEqual(ranks, beforeRanks);
   }
+  const missingRankPots = [{amount: 10, eligible: [0, 1]}];
+  const beforeMissingRankPots = structuredClone(missingRankPots);
+  const beforeRanks = structuredClone(ranks);
   assert.throws(
-    () => distribute([{amount: 10, eligible: [0, 1]}], ranks, 0),
+    () => distribute(missingRankPots, ranks, 0),
     (error) => error instanceof RuleError && error.code === 'INVALID_INPUT',
   );
+  assert.deepEqual(missingRankPots, beforeMissingRankPots);
+  assert.deepEqual(ranks, beforeRanks);
+
+  const emptyRankPots = [{amount: 10, eligible: [0]}];
+  const emptyRanks = new Map<SeatId, number[]>([[0, []]]);
+  const beforeEmptyRankPots = structuredClone(emptyRankPots);
+  const beforeEmptyRanks = structuredClone(emptyRanks);
   assert.throws(
-    () => distribute([{amount: 10, eligible: [0]}], new Map([[0, []]]), 0),
+    () => distribute(emptyRankPots, emptyRanks, 0),
     (error) => error instanceof RuleError && error.code === 'INVALID_INPUT',
   );
+  assert.deepEqual(emptyRankPots, beforeEmptyRankPots);
+  assert.deepEqual(emptyRanks, beforeEmptyRanks);
+
+  const sparseRank = [1, , 14] as number[];
+  const sparseRanks = new Map<SeatId, number[]>([[0, sparseRank]]);
+  const beforeSparseRank = structuredClone(sparseRank);
   assert.throws(
-    () => distribute([{amount: 10, eligible: [0]}], ranks, 9),
+    () => distribute([{amount: 10, eligible: [0]}], sparseRanks, 0),
     (error) => error instanceof RuleError && error.code === 'INVALID_INPUT',
   );
+  assert.deepEqual(sparseRank, beforeSparseRank);
+
+  const buttonPots = [{amount: 10, eligible: [0]}];
+  const beforeButtonPots = structuredClone(buttonPots);
+  const beforeButtonRanks = structuredClone(ranks);
+  assert.throws(
+    () => distribute(buttonPots, ranks, 9),
+    (error) => error instanceof RuleError && error.code === 'INVALID_INPUT',
+  );
+  assert.deepEqual(buttonPots, beforeButtonPots);
+  assert.deepEqual(ranks, beforeButtonRanks);
 });
