@@ -165,3 +165,78 @@ test('没有结算结果或确认门未开时不弹窗', () => {
   assert.equal(build(settledHand, settledMembers, null, 0), null, '比赛结束后不再弹确认框');
   assert.equal(build(null, settledMembers, gate(), 0), null);
 });
+
+test('结算窗亮出摊牌的最佳五张与中文牌型，没亮的显示未摊牌', () => {
+  // ♥A ♥K ♥Q ♥J ♥T：A 到 T 的同花顺，web 规则页口径单列成「皇家同花顺」。
+  const dialog = build(
+    settledHand,
+    settledMembers,
+    gate({
+      changes: [
+        {seat: 0, delta: 250, cards: [38, 37, 36, 35, 34], category: 'straightFlush'},
+        {seat: 1, delta: -250},
+      ],
+    }),
+    0,
+  );
+  const [winner, loser] = dialog.rows;
+  assert.deepEqual(winner.cards, [38, 37, 36, 35, 34], '原样把服务端亮的五张交给渲染层');
+  assert.equal(winner.typeName, '皇家同花顺');
+  assert.equal(winner.revealText, '', '亮了牌就不该再写「未摊牌」');
+  assert.equal(winner.stackText, '剩余 1,500', '剩余筹码直接读视图里的 stack');
+
+  assert.equal(loser.cards, null);
+  assert.equal(loser.typeName, null);
+  assert.equal(loser.revealText, '未摊牌', '服务端没给牌就是不亮');
+  assert.equal(loser.stackText, '剩余 500');
+});
+
+test('牌型码映射到中文名，同花顺非皇家时不显示皇家', () => {
+  const nameOf = (category: string, cards: number[] | null = null) =>
+    build(
+      settledHand,
+      settledMembers,
+      gate({changes: [{seat: 0, delta: 250, cards, category}, {seat: 1, delta: -250}]}),
+      0,
+    ).rows[0].typeName;
+  // 9 到 K 的同花顺不是皇家：同样是 straightFlush 码，牌不满足 A-K-Q-J-T。
+  assert.equal(nameOf('straightFlush', [33, 34, 35, 36, 37]), '同花顺');
+  assert.equal(nameOf('quads'), '四条');
+  assert.equal(nameOf('fullHouse'), '葫芦');
+  assert.equal(nameOf('flush'), '同花');
+  assert.equal(nameOf('straight'), '顺子');
+  assert.equal(nameOf('trips'), '三条');
+  assert.equal(nameOf('twoPair'), '两对');
+  assert.equal(nameOf('pair'), '一对');
+  assert.equal(nameOf('highCard'), '高牌');
+  // 不认识的码（服务端将来加了新牌型）：宁可什么都不显示，也不要显示一个错的词。
+  assert.equal(nameOf('royalFlush'), null);
+});
+
+test('弃牌结束的赢家亮底牌但没有牌型名', () => {
+  const dialog = build(
+    settledHand,
+    settledMembers,
+    gate({
+      changes: [
+        {seat: 0, delta: 5, cards: [12, 25], category: null},
+        {seat: 1, delta: -5},
+      ],
+    }),
+    0,
+  );
+  assert.equal(dialog.rows[0].cards.length, 2, '没发公共牌时直接亮两张底牌');
+  assert.equal(dialog.rows[0].typeName, null, '两张牌算不出牌型');
+  assert.equal(dialog.rows[1].revealText, '未摊牌', '弃牌者不亮');
+});
+
+test('服务端没给亮牌数据时每一行都显示未摊牌（老快照兼容）', () => {
+  const dialog = build(settledHand, settledMembers, gate({changes: []}), 0);
+  assert.deepEqual(
+    dialog.rows.map((row: any) => [row.cards, row.typeName, row.revealText]),
+    [
+      [null, null, '未摊牌'],
+      [null, null, '未摊牌'],
+    ],
+  );
+});

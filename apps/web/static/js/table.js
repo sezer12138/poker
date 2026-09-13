@@ -1,7 +1,7 @@
 // 牌桌页逻辑。约束：模块顶层不访问 window/document/localStorage，浏览器启动放在函数内。
 
 import {ApiError, buildCommand, buildContributeCommand, createApi, ensureSession, isUnauthorized} from './api.js';
-import {boardElements, cardElement, isCard} from './cards.js';
+import {boardElements, cardElement, cardRank, isCard} from './cards.js';
 import {contributionKey, contributionPlan, saveCommitment, UNAVAILABLE_NOTICE} from './fairness.js';
 import {
   STARTING_STACK,
@@ -81,6 +81,35 @@ export function isValidRaiseTarget(legal, target, roundBet, stack) {
 }
 
 /**
+ * 牌型类别码 → 中文名。类别码是服务端的稳定契约（见 apps/server/src/rooms/showdown.ts
+ * 与 docs/product/contract.md），中文怎么写由各客户端自己定。
+ */
+const HAND_TYPE_NAMES = {
+  straightFlush: '同花顺',
+  quads: '四条',
+  fullHouse: '葫芦',
+  flush: '同花',
+  straight: '顺子',
+  trips: '三条',
+  twoPair: '两对',
+  pair: '一对',
+  highCard: '高牌',
+};
+
+/**
+ * 牌型名。web 的规则页把 A、K、Q、J、10 的同花顺单列成「皇家同花顺」，弹窗跟着同一个
+ * 口径（小程序没有这一档，归入同花顺）。码不认识或没亮牌时返回 null，界面就不显示牌型。
+ */
+export function typeNameOf(category, cards) {
+  if (typeof category !== 'string') return null;
+  if (category === 'straightFlush' && Array.isArray(cards) && cards.length === 5) {
+    const ranks = cards.map(cardRank).sort((a, b) => a - b);
+    if (ranks.join(',') === '10,11,12,13,14') return '皇家同花顺';
+  }
+  return HAND_TYPE_NAMES[category] ?? null;
+}
+
+/**
  * 结算弹窗要显示的内容。纯函数：只吃数据、吐数据，DOM 由 renderResultDialog 负责，
  * 这样金额与排序能在 Node 里直接断言（见 test/table.test.ts）。
  * 返回 null 表示「这一手不该弹窗」——没有结果，或服务端没开确认门（比赛已结束）。
@@ -88,6 +117,9 @@ export function isValidRaiseTarget(legal, target, roundBet, stack) {
  * 汇总口径：金额取服务端的 settle.changes（本手净输赢，见 roomview.ts 的 seatDeltas），
  * 它是「赢的减去输的」；服务端升级前落盘的老快照没有这份数据，此时 delta 为 null，
  * 界面只显示谁赢了底池，绝不自己算一个可能错的数出来。
+ *
+ * 亮牌口径同样来自服务端：changes 里带 cards/category 的座位就是亮了的（赢家总是亮、
+ * 弃牌者不亮），没带的行显示「未摊牌」。剩余筹码直接读视图里的 hand.players[].stack。
  */
 export function buildResultDialog(hand, members = [], settle = null, viewerSeat = null) {
   if (!hand?.result || !settle) return null;
@@ -99,14 +131,18 @@ export function buildResultDialog(hand, members = [], settle = null, viewerSeat 
   };
   const awards = sumBy(hand.result.awards);
   const refunds = sumBy(hand.result.refunds);
-  const deltas = new Map((settle.changes ?? []).map(change => [change.seat, change.delta]));
+  const changes = new Map((settle.changes ?? []).map(change => [change.seat, change]));
 
   const rows = [...new Set(hand.players.map(player => player.seat))]
     .sort((a, b) => a - b)
     .map(seat => {
-      const delta = deltas.has(seat) ? deltas.get(seat) : null;
+      const change = changes.get(seat) ?? null;
+      const delta = change === null ? null : change.delta;
       const won = awards.get(seat) ?? 0;
       const refunded = refunds.get(seat) ?? 0;
+      const player = hand.players.find(item => item.seat === seat) ?? null;
+      // 服务端只给「该亮的人」带 cards/category（赢家总是亮、弃牌者不亮，见 showdown.ts）。
+      const cards = change?.cards ?? null;
       return {
         seat,
         name: nameOf(seat),
@@ -115,6 +151,10 @@ export function buildResultDialog(hand, members = [], settle = null, viewerSeat 
         // 没有金额时退化成「赢没赢」：至少让人知道这手谁拿走了底池。
         win: delta === null ? won > 0 : delta > 0,
         detail: won > 0 ? `赢得底池 ${formatChips(won)}` : refunded > 0 ? `退回 ${formatChips(refunded)}` : '',
+        cards,
+        typeName: typeNameOf(change?.category ?? null, cards),
+        stackText: player === null ? '' : `剩余 ${formatChips(player.stack)}`,
+        revealText: cards === null ? '未摊牌' : '',
       };
     })
     .sort((a, b) => (b.delta ?? -Infinity) - (a.delta ?? -Infinity) || a.seat - b.seat);
@@ -303,9 +343,18 @@ function renderResultDialog(room) {
 
   const rows = model.rows.map(row =>
     el('div', {className: row.win ? 'dialog__row dialog__row--win' : 'dialog__row'}, [
-      el('span', {className: 'dialog__name', text: `${row.name}（座位 ${row.seat}）`}),
-      row.detail === '' ? null : el('span', {className: 'muted', text: row.detail}),
-      el('span', {className: 'dialog__amount', text: row.amount}),
+      el('div', {className: 'dialog__head'}, [
+        el('span', {className: 'dialog__name', text: `${row.name}（座位 ${row.seat}）`}),
+        row.detail === '' ? null : el('span', {className: 'muted', text: row.detail}),
+        el('span', {className: 'dialog__amount', text: row.amount}),
+      ]),
+      el('div', {className: 'dialog__info'}, [
+        row.cards === null
+          ? el('span', {className: 'muted', text: row.revealText})
+          : el('span', {className: 'dialog__cards'}, row.cards.map(card => cardElement(card, {mini: true}))),
+        row.typeName === null ? null : el('span', {className: 'dialog__type', text: row.typeName}),
+        el('span', {className: 'dialog__stack', text: row.stackText}),
+      ]),
     ]),
   );
 
