@@ -1,0 +1,52 @@
+# 同桌 · 德州扑克 —— 单机部署（服务端 + Postgres）
+#
+# 用法：
+#   cp .env.example .env   # 填 POKER_STORAGE_KEY / POSTGRES_PASSWORD
+#   docker compose up -d --build
+#   open http://127.0.0.1:8787
+#
+# 默认 POKER_MODE=production：游客登录被禁用，必须配置微信凭据才能登录。
+# 只是想本地试跑，可以 POKER_MODE=development docker compose up（游客可登录）。
+services:
+  server:
+    build: .
+    image: poker-tongzhuo:latest
+    restart: unless-stopped
+    environment:
+      POKER_MODE: ${POKER_MODE:-production}
+      POKER_HOST: 0.0.0.0
+      POKER_PORT: "8787"
+      POKER_STORAGE: postgres
+      POKER_PG_URL: postgres://poker:${POSTGRES_PASSWORD:?请先在 .env 里设置 POSTGRES_PASSWORD}@postgres:5432/poker
+      # 与数据库分开保管的快照密钥（64 位十六进制）；生产模式必填，否则拒绝启动。
+      POKER_STORAGE_KEY: ${POKER_STORAGE_KEY:?请先在 .env 里设置 POKER_STORAGE_KEY（64 位十六进制）}
+      POKER_WECHAT_APPID: ${POKER_WECHAT_APPID:-}
+      POKER_WECHAT_SECRET: ${POKER_WECHAT_SECRET:-}
+    ports:
+      # 只绑定回环：公网入口交给 nginx 终止 TLS（见 deploy/nginx.conf.example）。
+      - "127.0.0.1:8787:8787"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - poker-data:/app/data
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: poker
+      POSTGRES_USER: poker
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请先在 .env 里设置 POSTGRES_PASSWORD}
+    volumes:
+      - poker-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poker -d poker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  # 应用侧数据（pg 模式只放密钥文件与健康状态）；数据库在 poker-db。
+  poker-data:
+  poker-db:

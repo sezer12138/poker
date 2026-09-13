@@ -1,0 +1,89 @@
+# 同桌 · 德州扑克 —— nginx 反向代理示例（TLS 终结 + WebSocket 升级）
+#
+# 这是示例而不是可直接用的配置：把 example.com 换成你自己的域名，证书路径改成
+# 真实路径，再软链到 /etc/nginx/sites-enabled/。改动后先 `nginx -t` 再 reload。
+#
+# 为什么必须有 https：微信小程序只允许 https/wss 的合法域名，浏览器端也会因为
+# 混合内容拦掉 ws:// 请求。这里是唯一做 TLS 的地方，容器内仍是明文 8787。
+
+upstream poker_server {
+    server 127.0.0.1:8787;
+    keepalive 32;
+}
+
+# HTTP 一律跳 HTTPS：小程序和浏览器都不该有明文入口。
+server {
+    listen 80;
+    listen [::]:80;
+    server_name example.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+
+    # 与后端的请求体上限保持一致（服务端 BODY_LIMIT_BYTES = 64KB）。
+    client_max_body_size 64k;
+
+    # 认证信息只走 Authorization 头，不要在日志里留 token。
+    access_log /var/log/nginx/poker.access.log;
+    error_log  /var/log/nginx/poker.error.log warn;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    # 静态资源已由服务端下发 CSP，这里不再覆盖它。
+
+    # WebSocket：必须 HTTP/1.1 + Upgrade 头。proxy_read_timeout 要大于服务端
+    # 心跳间隔（30s），否则安静的房间会被 nginx 先掐断。
+    location /ws {
+        proxy_pass http://poker_server;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_buffering off;
+    }
+
+    location / {
+        proxy_pass http://poker_server;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+}
+
+# ── 微信小程序上线前必须做的三件事 ──────────────────────────────────────────
+#
+# 1. 域名已在工信部备案（ICP），且微信公众平台「开发管理 → 开发设置 → 服务器域名」
+#    里把 https://example.com 加进 request 合法域名、wss://example.com 加进
+#    socket 合法域名。域名不能带端口、不能用 IP、必须有有效证书。
+# 2. 证书由受信任 CA 签发（微信客户端不认自签证书），且不能过期。
+# 3. 小程序端 config.js 的 baseUrl/wsUrl 改成 https/wss 的正式域名；
+#    本地 127.0.0.1 只在开发者工具「不校验合法域名」下可用。
+#
+# 另需在微信公众平台配置业务域名（如需要 web-view）与隐私协议、类目；棋牌类目
+# 审核较严，能否过审与本文档无关，请以实际审核结果为准。

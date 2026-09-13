@@ -1,0 +1,18 @@
+# 镜像里只需要源码与依赖，不要宿主机的这些目录。
+.git
+.gitignore
+.worktrees
+.superpowers
+node_modules
+data
+coverage
+*.log
+.env
+.env.*
+docs
+examples
+deploy
+Dockerfile
+docker-compose.yml
+.dockerignore
+CLAUDE.md
