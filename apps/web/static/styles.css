@@ -899,6 +899,12 @@ input[type='number'] {
   color: var(--muted);
 }
 
+/* 还在等谁确认：带名字，好让「已确认 2/3」有个明确的催人对象。 */
+.dialog__pending {
+  margin-top: 2px;
+  color: var(--ink);
+}
+
 .dialog__timer {
   margin-top: 4px;
   font-size: 13px;

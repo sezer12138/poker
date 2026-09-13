@@ -163,17 +163,27 @@ export function buildResultDialog(hand, members = [], settle = null, viewerSeat 
   const required = [...(settle.required ?? [])].sort((a, b) => a - b);
   const acks = [...(settle.acks ?? [])].sort((a, b) => a - b);
   const canAck = viewerSeat !== null && required.includes(viewerSeat) && !acks.includes(viewerSeat);
+  // 待确认的真人名单：断线的标出来，否则「已确认 1/3」看着像牌桌卡住了。
+  // 视图里没有 online 字段时（老快照）按在线处理，不误标「离线」。
+  const pending = required
+    .filter(seat => !acks.includes(seat))
+    .map(seat => (members.find(member => member.seat === seat)?.online === false ? `${nameOf(seat)}（离线）` : nameOf(seat)));
+  // 亮牌方式：只剩一个没弃牌的人就是弃牌收池（只亮赢家，底牌不够五张没有牌型），
+  // 否则发满公共牌摊牌比牌。写在 eyebrow 里，正好解释「为什么大半行写着未摊牌」。
+  const mode = hand.players.filter(player => !player.folded).length <= 1 ? '弃牌收池' : '摊牌比牌';
   // 副标题只说「谁赢下多大的底池」：逐座位的净输赢在 rows 里，两处都写金额容易自相矛盾
   // （赢家拿走的底池 ≠ 他的净收入，底池里还有他自己投进去的那份）。
   const winners = rows.filter(row => row.win).map(row => row.name);
   const potTotal = (hand.result.pots ?? []).reduce((sum, pot) => sum + pot.amount, 0);
   return {
     handNo: settle.handNo,
+    eyebrow: mode,
     title: `第 ${settle.handNo} 手结算`,
     summary: winners.length === 0 ? '本手无人赢得底池' : `${winners.join('、')} 赢下 ${formatChips(potTotal)} 的底池`,
     rows,
     required,
     acks,
+    pending,
     canAck,
     ackText: `已确认 ${acks.length}/${required.length}`,
   };
@@ -391,11 +401,13 @@ function renderResultDialog(room) {
   }
 
   render(card, [
+    el('div', {className: 'eyebrow', text: model.eyebrow}),
     el('div', {className: 'dialog__title', text: model.title, attrs: {id: 'result-dialog-title'}}),
     el('div', {className: 'dialog__subtitle', text: model.summary}),
     ...rows,
     el('div', {className: 'dialog__acks'}, [
       el('div', {text: `真人确认：${model.ackText}${model.required.length === 0 ? '（本手无真人参与）' : ''}`}),
+      model.pending.length === 0 ? null : el('div', {className: 'dialog__pending', text: `还在等：${model.pending.join('、')}`}),
       el('div', {
         className: 'dialog__timer',
         dataset: {role: 'dialog-countdown'},

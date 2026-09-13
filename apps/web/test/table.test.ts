@@ -137,6 +137,38 @@ test('结算弹窗按座位列出输赢金额，赢家排在最前', () => {
   assert.equal(dialog.rows[0].detail, '赢得底池 500', '还要说清底池有多少');
 });
 
+test('eyebrow 说明亮牌方式，标题说手数、副标题说谁赢下多大', () => {
+  // 只剩一个没弃牌的人 = 弃牌收池，只有赢家亮牌，所以大半行写着「未摊牌」。
+  const foldWin = build(settledHand, settledMembers, gate(), 0);
+  assert.equal(foldWin.eyebrow, '弃牌收池');
+  assert.equal(foldWin.title, '第 7 手结算');
+  assert.equal(foldWin.summary, '甲 赢下 500 的底池');
+  // 不止一个人没弃牌就是摊牌比牌，行里会出现最佳五张与牌型名。
+  const showdown = build(
+    {...settledHand, players: settledHand.players.map(player => ({...player, folded: false}))},
+    settledMembers,
+    gate(),
+    0,
+  );
+  assert.equal(showdown.eyebrow, '摊牌比牌');
+});
+
+test('待确认名单点名到人，断线的标出来', () => {
+  const pendingOf = (members: any[], settle: any) => build(settledHand, members, settle, 0).pending;
+  assert.deepEqual(pendingOf(settledMembers, gate()), ['甲', '乙'], '一个都没点就都在名单上');
+  assert.deepEqual(pendingOf(settledMembers, gate({acks: [0]})), ['乙'], '点过的从名单里去掉');
+  assert.deepEqual(pendingOf(settledMembers, gate({acks: [0, 1]})), [], '都点过就不显示这行');
+  // 断线的人仍在待确认名单里（服务端会等兜底倒计时），但要标出来，别让人干等。
+  assert.deepEqual(
+    pendingOf([{seat: 0, name: '甲', online: true}, {seat: 1, name: '乙', online: false}], gate()),
+    ['甲', '乙（离线）'],
+  );
+  // 老快照没有 online 字段：不能把所有人误标成离线。
+  assert.deepEqual(pendingOf(settledMembers, gate()), ['甲', '乙']);
+  // 视图里查不到这个名字（成员已离桌）时退化成座位号，至少还能定位。
+  assert.deepEqual(pendingOf([{seat: 0, name: '甲', online: true}], gate()), ['甲', '座位 1']);
+});
+
 test('确认按钮的三种状态：待确认 / 已确认 / 无需确认', () => {
   assert.equal(build(settledHand, settledMembers, gate(), 0).canAck, true);
   // 自己已经点过确认：按钮换成关闭，不能让人重复点。
