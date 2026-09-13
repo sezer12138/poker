@@ -1,25 +1,27 @@
-/* 同桌 · 德州扑克 品牌样式：简约风格——暖白底、白色面板、墨色文字，只在品牌绿与
-   庄家标记上用色。移动优先，无外部资源（pages.test.ts 会检查这一点）。 */
+/* 同桌 · 德州扑克 品牌样式：简约风格——浅灰底、低饱和绿牌桌、白色面板、墨色文字，
+   全站只有一种强调色（品牌绿），没有金色/铜色点缀。色值与小程序 app.wxss 的
+   `page` 变量一一对应，改色要两端一起改。移动优先，无外部资源（pages.test.ts 会检查）。 */
 
 :root {
-  --bg: #F5F4F0;
+  --bg: #F4F6F5;
   --surface: #FFFFFF;
-  --surface-2: #F0EEE9;
-  --line: #E6E3DC;
-  --line-strong: #D5D1C7;
-  --ink: #22252A;
-  --muted: #6E737B;
-  --accent: #2F6A50;
-  --accent-dark: #245741;
-  --accent-soft: #EAF2EE;
+  --surface-2: #EDF3EF;
+  --line: #D9E3DD;
+  --line-strong: #CDDDD3;
+  --ink: #243C32;
+  --muted: #64756D;
+  --accent: #28694F;
+  --accent-dark: #256B50;
+  --accent-soft: #F0F7F2;
   --on-accent: #FFFFFF;
-  --brass: #A98A4E;
-  --danger: #C0564F;
-  --danger-soft: #E2A09B;
-  --ok: #2F7A57;
+  /* 牌桌毡面：比 --surface-2 稍深一点，让椭圆桌面从浅灰底上浮出来。 */
+  --felt: #E5EEE9;
+  --danger: #B3261E;
+  --danger-soft: #B54138;
+  --ok: #287455;
   --radius: 12px;
   --radius-lg: 18px;
-  --shadow: 0 1px 2px rgba(20, 24, 28, 0.05), 0 8px 24px rgba(20, 24, 28, 0.06);
+  --shadow: 0 4px 18px rgba(30, 55, 44, 0.05);
   --font: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', Roboto,
     sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -259,8 +261,8 @@ ol {
 }
 
 .btn--danger:hover:not(:disabled) {
-  background: #A94A44;
-  border-color: #A94A44;
+  background: #9A2019;
+  border-color: #9A2019;
 }
 
 .btn--block {
@@ -324,12 +326,12 @@ input[type='number'] {
 }
 
 .tag--bot {
-  color: #4B7CB0;
+  color: #416A83;
 }
 
 .tag--host,
 .tag--role {
-  color: var(--brass);
+  color: var(--accent);
 }
 
 .tag--self {
@@ -344,9 +346,9 @@ input[type='number'] {
 }
 
 .banner--error {
-  background: #FBEDEB;
+  background: #FFF0EE;
   border: 1px solid var(--danger-soft);
-  color: #8E3A33;
+  color: #922C25;
 }
 
 .banner--notice {
@@ -412,14 +414,14 @@ input[type='number'] {
 }
 
 .card--back {
-  background: repeating-linear-gradient(45deg, #EDF3EF, #EDF3EF 4px, #DCE7E1 4px, #DCE7E1 8px);
+  background: #678778;
   border-color: var(--line-strong);
 }
 
 .card--back .card__back {
   width: 60%;
   height: 70%;
-  border: 1px solid rgba(47, 106, 80, 0.4);
+  border: 1px solid var(--line);
   border-radius: 3px;
 }
 
@@ -458,14 +460,16 @@ input[type='number'] {
 }
 
 /* 牌桌 */
+/* 牌桌是一张椭圆毡面：座位按椭圆百分比定位（table.js 的 seatPositions），
+   所以这里的 border-radius 和座位布局是配套的，改形状要一并改定位。 */
 .table-surface {
   position: relative;
   min-height: 420px;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  border: 1px solid var(--line);
+  border-radius: 42% / 26%;
+  background: var(--felt);
+  border: 2px solid var(--line-strong);
   box-shadow: var(--shadow);
-  margin-bottom: 12px;
+  margin: 16px 0 20px;
   transition: opacity 0.2s ease;
 }
 
@@ -575,8 +579,8 @@ input[type='number'] {
 
 .announce--big {
   font-size: 22px;
-  border-color: var(--brass);
-  color: var(--brass);
+  border-color: var(--accent);
+  color: var(--accent);
   animation-name: announce-big;
 }
 
@@ -679,7 +683,7 @@ input[type='number'] {
 
 .seat.is-actor {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(47, 106, 80, 0.18);
+  box-shadow: 0 0 0 2px #B9D6C5;
 }
 
 .seat.is-self {
@@ -815,17 +819,17 @@ input[type='number'] {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(34, 37, 42, 0.42);
+  background: rgba(25, 43, 34, 0.36);
 }
 
 .dialog__card {
-  width: min(420px, 100%);
+  width: min(580px, 100%);
   max-height: 84vh;
   overflow-y: auto;
   background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  box-shadow: 0 12px 40px rgba(20, 24, 28, 0.22);
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 24px 80px rgba(28, 53, 51, 0.2);
 }
 
 .dialog__title {
@@ -1206,7 +1210,7 @@ input[type='number'] {
   }
 
   .table-surface {
-    min-height: 520px;
+    min-height: 440px;
   }
 
   .seat {

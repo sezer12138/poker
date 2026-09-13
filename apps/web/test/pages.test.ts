@@ -26,7 +26,11 @@ test('每个页面都存在并使用 type="module" 引入自己的脚本', () =>
   for (const [page, script] of PAGES) {
     const html = read(page);
     assert.ok(html.includes('lang="zh-CN"'), `${page} 应声明中文语言`);
-    assert.ok(html.includes(`<script type="module" src="static/js/${script}.js"></script>`), `${page} 缺少模块脚本`);
+    assert.match(
+      html,
+      new RegExp(`<script type="module" src="static/js/${script}\\.js(\\?v=[^"]*)?"></script>`),
+      `${page} 缺少模块脚本`,
+    );
     assert.equal(/<script(?![^>]*type="module")/.test(html), false, `${page} 不允许非模块脚本`);
     assert.equal(/https?:\/\//.test(html), false, `${page} 不得引用外部资源`);
   }
@@ -46,11 +50,29 @@ test('页面引用的脚本与样式文件真实存在', () => {
     assert.ok(existsSync(fileURLToPath(new URL(file, ROOT))), `缺少 ${file}`);
   }
   const css = read('static/styles.css');
-  assert.ok(css.includes('--bg: #F5F4F0'), '样式缺少简约风格的暖白底色');
+  assert.ok(css.includes('--bg: #F4F6F5'), '样式缺少浅灰底色');
   assert.ok(css.includes('--surface: #FFFFFF'), '样式缺少纯白面板底色');
-  assert.ok(css.includes('--ink: #22252A'), '样式缺少墨色文字');
-  assert.ok(css.includes('--accent: #2F6A50'), '样式缺少墨绿点缀色');
+  assert.ok(css.includes('--ink: #243C32'), '样式缺少墨色文字');
+  assert.ok(css.includes('--accent: #28694F'), '样式缺少品牌绿点缀色');
+  assert.ok(css.includes('--felt: #E5EEE9'), '样式缺少牌桌毡面底色');
+  // 金色/铜色已从主题里去掉：强调一律走品牌绿，留一个 --brass 变量只会让后来者用错色。
+  assert.equal(css.includes('--brass'), false, '样式表仍残留 --brass');
   assert.equal(/@import|url\(\s*['"]?https?:/.test(css), false, '样式不得引用外部资源');
+});
+
+test('每个页面的静态资源都带同一个缓存版本号', () => {
+  const versions = new Set<string>();
+  for (const [page, script] of PAGES) {
+    const html = read(page);
+    const css = html.match(/href="static\/styles\.css\?v=([^"]+)"/);
+    const js = html.match(new RegExp(`src="static/js/${script}\\.js\\?v=([^"]+)"`));
+    assert.ok(css, `${page} 的样式表没带版本号，换主题后老访客会拿到旧样式`);
+    assert.ok(js, `${page} 的脚本没带版本号`);
+    versions.add(css[1]!);
+    assert.equal(css[1], js[1], `${page} 的样式与脚本版本号不一致`);
+  }
+  // 版本号必须是同一天同一批：只改一个页面会让两端缓存状态不一致。
+  assert.equal(versions.size, 1, `各页面的缓存版本号不统一：${[...versions].join(' / ')}`);
 });
 
 test('播报横幅在样式表里有基础样式、五个语气档与动画', () => {
@@ -72,10 +94,13 @@ test('[hidden] 必须盖过作者样式，空弹窗不能遮住牌桌', () => {
 });
 
 test('每个页面的主题色与样式表的主色一致', () => {
+  // 直接从样式表里取底色来比对，改主题时不用再手改这里的色值。
+  const bg = read('static/styles.css').match(/--bg:\s*(#[0-9A-Fa-f]{6})/)?.[1];
+  assert.ok(bg, '样式表里找不到 --bg');
   for (const [page] of PAGES) {
     const html = read(page);
-    assert.ok(html.includes('<meta name="theme-color" content="#2F6A50" />'), `${page} 的 theme-color 未跟随新配色`);
-    assert.equal(html.includes('#0B3D2E'), false, `${page} 仍残留旧牌桌绿`);
+    assert.ok(html.includes(`<meta name="theme-color" content="${bg}" />`), `${page} 的 theme-color 未跟随 --bg`);
+    assert.equal(html.includes('#0B3D2E'), false, `${page} 仍残留旧的深绿牌桌色`);
   }
 });
 
