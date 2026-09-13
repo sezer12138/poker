@@ -52,7 +52,7 @@ export function evaluate(input: readonly Card[]): number[] {
   if (!Array.isArray(input) || (input.length !== 5 && input.length !== 7)) {
     throw new RuleError('INVALID_INPUT', 'A hand must contain five or seven cards');
   }
-  if (input.some((card) => !Number.isInteger(card) || card < 0 || card > 51)) {
+  if ([...input].some((card) => !Number.isInteger(card) || card < 0 || card > 51)) {
     throw new RuleError('INVALID_INPUT', 'Cards must be integers from 0 to 51');
   }
   if (new Set(input).size !== input.length) {

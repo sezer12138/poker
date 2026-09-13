@@ -73,3 +73,17 @@ test('compares score vectors lexicographically', () => {
   assert.equal(compare([1, 14], [1, 14, 0]), 0);
   assert.equal(compare([0, 14], [1, 2]), -1);
 });
+
+for (const length of [5, 7]) {
+  test(`rejects every missing position in a ${length}-card hand without mutating input`, () => {
+    for (let missing = 0; missing < length; missing++) {
+      const hand = Array.from({length}, (_, card) => card);
+      delete hand[missing];
+      const before = hand.slice();
+      assert.throws(() => evaluate(hand), (error: unknown) =>
+        error instanceof RuleError && error.code === 'INVALID_INPUT');
+      assert.deepEqual(hand, before);
+      assert.equal(missing in hand, false);
+    }
+  });
+}

@@ -41,7 +41,9 @@ function advance(h: Hand, after: SeatId, events: EngineEvent[]): void {
       return;
     }
     const active = live.filter(p => p.stack > 0);
-    const pending = active.filter(p => p.roundBet < h.currentBet || (active.length > 1 && p.actedAt === null));
+    // A lone player only owes actual wagers; the nominal blind cannot create a decision.
+    const owedBet = active.length === 1 ? Math.max(...live.map(p => p.roundBet)) : h.currentBet;
+    const pending = active.filter(p => p.roundBet < owedBet || (active.length > 1 && p.actedAt === null));
     if (pending.length > 0) {
       h.actor = clockwise(pending.map(p => p.seat), after)[0]!;
       return;

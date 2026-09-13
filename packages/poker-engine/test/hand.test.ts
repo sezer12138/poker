@@ -150,3 +150,22 @@ test('seat gaps, input order and multiple all-in layers preserve chips', () => {
   assert.equal(total(h), 165);
   assert.deepEqual(h.result!.pots.map(p => p.amount), [75, 30]);
 });
+
+for (const [stack, refunds] of [[3, [{seat: 0, amount: 2}]], [5, []]] as const) {
+  test(`blind all-in of ${stack} covered by small blind runs out without an actor`, () => {
+    const h = startHand([{seat: 0, stack: 100}, {seat: 1, stack}], 0, [5, 10], fullDeck(), 1);
+    assert.equal(h.street, 'settled');
+    assert.equal(h.actor, null);
+    assert.equal(h.board.length, 5);
+    assert.deepEqual(h.result!.refunds, refunds);
+    assert.equal(total(h), 100 + stack);
+    assert.throws(() => timeoutAction(h));
+  });
+}
+
+test('short big blind keeps nominal wager while multiple players can act', () => {
+  const h = startHand([{seat: 0, stack: 100}, {seat: 1, stack: 100}, {seat: 2, stack: 3}], 0, [5, 10], fullDeck(), 1);
+  assert.equal(h.currentBet, 10);
+  assert.equal(h.actor, 0);
+  assert.equal(h.board.length, 0);
+});
