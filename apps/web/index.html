@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B3D2E" />
+    <title>同桌 · 德州扑克</title>
+    <link rel="stylesheet" href="static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html">
+        <span class="brand__mark">♠</span>
+        <span class="brand__name">同桌 · 德州扑克</span>
+      </a>
+      <nav class="topbar__nav">
+        <a href="rules.html">规则</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="hero">
+        <h1>同桌 · 德州扑克</h1>
+        <p>免费虚拟筹码 · 2–9 人 · 好友房与机器人练习 · 赛后完整牌序核验</p>
+      </section>
+
+      <div id="error-banner" class="banner banner--error" hidden></div>
+      <p id="status-text" class="identity"></p>
+
+      <section class="panel">
+        <h2>身份</h2>
+        <label for="nickname">昵称</label>
+        <input id="nickname" type="text" maxlength="24" placeholder="请输入昵称" autocomplete="nickname" />
+        <p id="user-line" class="identity"></p>
+        <p id="server-line" class="identity"></p>
+      </section>
+
+      <section class="panel">
+        <h2>创建房间</h2>
+        <label for="create-bots">机器人数量（0–8）</label>
+        <select id="create-bots">
+          <option value="0">0 个（纯真人好友房）</option>
+          <option value="1">1 个</option>
+          <option value="2">2 个</option>
+          <option value="3">3 个</option>
+          <option value="4">4 个</option>
+          <option value="5">5 个</option>
+          <option value="6">6 个</option>
+          <option value="7">7 个</option>
+          <option value="8">8 个</option>
+        </select>
+        <div class="row" style="margin-top: 12px">
+          <button id="create-btn" class="btn grow">创建房间</button>
+          <button id="practice-btn" class="btn btn--ghost grow">机器人练习（1 人对 3 机器人）</button>
+        </div>
+        <p class="muted">创建者占座位 0；开赛后名单锁定，可添加/移除机器人的操作在等待房间中进行。</p>
+      </section>
+
+      <section class="panel">
+        <h2>加入房间</h2>
+        <label for="join-code">房间码</label>
+        <div class="row">
+          <input id="join-code" class="grow" type="text" inputmode="text" placeholder="输入 6 位房间码" />
+          <button id="join-code-btn" class="btn">加入</button>
+        </div>
+        <label for="join-invite" style="margin-top: 12px">邀请链接或邀请码</label>
+        <div class="row">
+          <input id="join-invite" class="grow" type="text" placeholder="粘贴邀请链接" />
+          <button id="join-invite-btn" class="btn btn--ghost">用邀请加入</button>
+        </div>
+        <p class="muted">打开带 <span class="mono">?invite=</span> 的链接会自动加入房间。</p>
+      </section>
+
+      <section id="wechat-box" class="panel" hidden>
+        <h2>微信登录</h2>
+        <label for="wechat-code">微信登录凭证 code</label>
+        <input id="wechat-code" type="text" placeholder="由微信客户端授权后获得" />
+        <div class="row" style="margin-top: 12px">
+          <button id="wechat-btn" class="btn btn--ghost btn--block">使用微信身份登录</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>开始之前</h2>
+        <ul>
+          <li>每位参赛者起始 1,000 免费虚拟筹码，盲注 5/10 起，每 10 手升一级。</li>
+          <li>每次行动 30 秒，超时能过牌则过牌，否则弃牌。</li>
+          <li>真人需在等待房间准备；准备即表示接受“比赛结束后本桌成员可核验完整历史牌序”。</li>
+          <li>本产品不含任何充值、提现或实物兑换。</li>
+        </ul>
+        <div class="row">
+          <a class="btn btn--ghost" href="rules.html">查看完整规则</a>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="static/js/lobby.js"></script>
+  </body>
+</html>
