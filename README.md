@@ -86,6 +86,10 @@ docs/verification       每一步真实跑过的命令与输出，含未验证�
 | `POKER_WECHAT_APPID` / `POKER_WECHAT_SECRET` | — | 微信登录；缺省时 `/api/auth/wechat` 返回明确的中文错误 |
 | `POKER_SESSION_TTL_DAYS` | `7` | 登录态有效期 |
 | `POKER_ALLOWED_ORIGINS` | 空（不校验） | WebSocket 的 `Origin` 白名单，逗号分隔；小程序不带 `Origin`，不受影响 |
+| `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` | `4000` / `1000` | **仅开发模式**：结算展示与机器人思考时长（毫秒）。生产模式一律忽略并打印提示，避免把对局压到玩家来不及反应 |
+
+`POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` 只服务于自动化（`npm run smoke` 靠它们把一场牌局压进几秒），
+不需要在正常开发或部署时设置。
 
 ## 部署
 

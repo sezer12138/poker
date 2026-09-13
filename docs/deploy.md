@@ -61,6 +61,12 @@ curl -s http://127.0.0.1:8787/api/health
 | `POKER_WECHAT_APPID` / `POKER_WECHAT_SECRET` | — | 微信登录凭据 |
 | `POKER_SESSION_TTL_DAYS` | `7` | 登录态有效期 |
 | `POKER_ALLOWED_ORIGINS` | 空（不校验） | WebSocket 的 `Origin` 白名单，逗号分隔；**公网部署建议填成你的域名** |
+| `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` | `4000` / `1000` | 自动化专用，**生产模式一律忽略**并打印一行提示 |
+
+`POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` 是给 `npm run smoke` 这类自动化用的（把结算展示与
+机器人思考压到几十毫秒，一场牌局几秒打完）。它们只在 `POKER_MODE=development` 下生效：
+生产模式不解析、不采纳，并在启动时用中文说明「已按设计忽略」——如果你在生产日志里看到这行，
+说明环境变量里混进了本地调试的值，删掉即可，服务端行为不受影响。
 
 关于 `POKER_ALLOWED_ORIGINS`：它挡的是「陌生网页借用访客浏览器发起 WebSocket 连接」，
 属于纵深防御，不是认证——真正的门槛仍是 `subscribe` 消息里的令牌与成员身份校验
