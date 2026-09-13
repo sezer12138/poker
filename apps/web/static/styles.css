@@ -31,9 +31,10 @@
   box-sizing: border-box;
 }
 
-/* hidden 属性必须盖过作者样式：.dialog / .actions__row / .banner--tip 都写了 display，
+/* hidden 属性必须盖过作者样式：.dialog / .actions__row 都写了 display，
    而作者样式一律压过 UA 的 [hidden]{display:none}——不 !important 的话，结算弹窗的
    遮罩会永久罩住牌桌（哪怕它只是空卡片），观战时的操作按钮也藏不住。
+   同一类坑还有一个：教程弹窗是 <dialog>，见下面 .tutorial-dialog:not([open])。
    将来若真要让某个元素在 hidden 下仍显示，先想清楚为什么。 */
 [hidden] {
   display: none !important;
@@ -360,20 +361,6 @@ input[type='number'] {
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
   color: var(--muted);
-}
-
-/* 新手引导条：只在大厅首次进入时显示，点掉后写 localStorage。 */
-.banner--tip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-}
-
-.banner--tip button {
-  flex: 0 0 auto;
 }
 
 /* 牌面 */
@@ -1132,38 +1119,96 @@ input[type='number'] {
   color: var(--accent);
 }
 
-/* 新手教程 */
-.tutorial__step {
-  display: flex;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px dashed var(--line);
+.rules__faq h3 {
+  margin-bottom: 2px;
 }
 
-.tutorial__step:last-child {
-  border-bottom: none;
+.rules__faq {
+  margin-bottom: 10px;
 }
 
-.tutorial__num {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  background: var(--accent-soft);
+/* 弹窗顶部的小标：第几手结算、教程第几步这类定位信息。 */
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 2px;
   color: var(--accent);
-  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* 新手教程弹窗：用原生 <dialog>.showModal()，弹层由浏览器放进 top layer，
+   所以不必操心 z-index——它一定盖过结算弹窗（z-index 40）和播报横幅（45）。 */
+.tutorial-dialog {
+  width: auto;
+  max-width: none;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  border: none;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 关掉的 <dialog> 靠 UA 的 dialog:not([open]){display:none} 隐藏，而作者样式里这条
+   display:flex 会压过它——不显式关掉，按 Esc 关掉的教程会一直盖在页面上
+   （和上面 [hidden] 那条规则同一个坑）。 */
+.tutorial-dialog:not([open]) {
+  display: none;
+}
+
+.tutorial-dialog::backdrop {
+  background: rgba(25, 43, 34, 0.36);
+}
+
+.tutorial-dialog__card {
+  width: min(560px, 100%);
+  max-height: 84vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: 0 24px 80px rgba(28, 53, 51, 0.2);
+}
+
+.tutorial-dialog__card h2:focus {
+  outline: none;
+}
+
+.tutorial-dialog__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tutorial-dialog__options .btn.is-right {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.tutorial-dialog__options .btn.is-wrong {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.tutorial-dialog__feedback {
   font-size: 13px;
+  margin-top: 8px;
 }
 
-.tutorial__body {
-  flex: 1 1 auto;
+.tutorial-dialog__feedback.is-right {
+  color: var(--ok);
 }
 
-.tutorial__body h3 {
-  margin-bottom: 4px;
+.tutorial-dialog__feedback.is-wrong {
+  color: var(--danger);
+}
+
+.tutorial-dialog__card .row--between {
+  margin-top: 14px;
 }
 
 .tutorial__tip {

@@ -7,14 +7,15 @@
     <title>同桌 · 德州扑克</title>
     <link rel="stylesheet" href="static/styles.css?v=20260914" />
   </head>
-  <body>
+  <!-- data-tutorial-auto：第一次进大厅自动弹出新手教程，看过后本地记住不再打扰。 -->
+  <body data-tutorial-auto="true">
     <header class="topbar">
       <a class="brand" href="index.html">
         <span class="brand__mark">♠</span>
         <span class="brand__name">同桌 · 德州扑克</span>
       </a>
       <nav class="topbar__nav">
-        <a href="tutorial.html">新手教程</a>
+        <button class="btn btn--ghost btn--small" type="button" data-tutorial>新手教程</button>
         <a href="rules.html">规则</a>
       </nav>
     </header>
@@ -24,11 +25,6 @@
         <h1>同桌 · 德州扑克</h1>
         <p>免费虚拟筹码 · 2–9 人 · 好友房与机器人练习 · 赛后完整牌序核验</p>
       </section>
-
-      <div id="tutorial-banner" class="banner banner--tip" hidden>
-        <span>第一次来？用两分钟过一遍新手教程，就知道怎么开局、怎么行动了。</span>
-        <button id="tutorial-btn" class="btn btn--small">看教程</button>
-      </div>
 
       <div id="error-banner" class="banner banner--error" hidden></div>
       <p id="status-text" class="identity"></p>
@@ -96,12 +92,13 @@
           <li>本产品不含任何充值、提现或实物兑换。</li>
         </ul>
         <div class="row">
-          <a class="btn btn--ghost" href="tutorial.html">新手教程</a>
+          <button class="btn btn--ghost" type="button" data-tutorial>新手教程</button>
           <a class="btn btn--ghost" href="rules.html">查看完整规则</a>
         </div>
       </section>
     </main>
 
+    <script type="module" src="static/js/tutorial.js?v=20260914"></script>
     <script type="module" src="static/js/lobby.js?v=20260914"></script>
   </body>
 </html>

@@ -2,7 +2,7 @@
 // 模块顶层不访问 window/document/localStorage。
 
 import {ApiError, createApi, ensureSession, isUnauthorized, readName, saveName, saveToken} from './api.js';
-import {TUTORIAL_KEY, navigate, pageUrl, qs, queryParam, setDisabled, setHidden, setText, storageGet, storageSet} from './util.js';
+import {navigate, pageUrl, qs, queryParam, setDisabled, setHidden, setText} from './util.js';
 
 const view = {
   api: null,
@@ -119,22 +119,7 @@ async function wechatLogin() {
   }
 }
 
-/**
- * 新手引导条：没看过教程才显示。localStorage 不可用（隐私模式）时按「没看过」处理，
- * 但也不写标记——大不了下次再显示一次，比在隐私模式里静默失败强。
- */
-function wireTutorial() {
-  const banner = node('tutorial-banner');
-  if (!banner) return;
-  setHidden(banner, storageGet(TUTORIAL_KEY) !== null);
-  node('tutorial-btn')?.addEventListener('click', () => {
-    storageSet(TUTORIAL_KEY, '1');
-    navigate('tutorial.html');
-  });
-}
-
 function wire() {
-  wireTutorial();
   node('create-btn')?.addEventListener('click', () => {
     const bots = Number.parseInt(node('create-bots')?.value ?? '0', 10);
     createRoom(Number.isInteger(bots) ? Math.max(0, Math.min(8, bots)) : 0);

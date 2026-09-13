@@ -12,7 +12,6 @@ const PAGES: [string, string][] = [
   ['table.html', 'table'],
   ['rules.html', 'rules'],
   ['audit.html', 'audit'],
-  ['tutorial.html', 'tutorial'],
 ];
 
 // renderSeats / renderResult / 结算弹窗里动态生成的节点，本来就不应出现在静态 HTML 中。
@@ -84,6 +83,36 @@ test('播报横幅在样式表里有基础样式、五个语气档与动画', ()
     assert.ok(css.includes(`.announce--${tone}`), `缺少 ${tone} 档的样式`);
   }
   assert.ok(css.includes('@keyframes announce-in'), '缺少播报的淡入淡出动画');
+});
+
+test('新手教程改成弹窗后，五个页面都能就地打开它', () => {
+  // 教程不再是独立页：它由 tutorial.js 在各页动态建出 <dialog>，靠 [data-tutorial] 按钮唤出。
+  // 少任何一个入口，那一页的新手就永远看不到教程。
+  const version = read('index.html').match(/styles\.css\?v=([^"]+)"/)?.[1];
+  assert.ok(version, 'index.html 的样式表没带版本号');
+  for (const [page] of PAGES) {
+    const html = read(page);
+    assert.ok(html.includes('data-tutorial'), `${page} 没有打开教程的入口`);
+    assert.match(
+      html,
+      new RegExp(`<script type="module" src="static/js/tutorial\\.js(\\?v=${version})?"></script>`),
+      `${page} 没有引入弹窗教程脚本`,
+    );
+    assert.equal(html.includes('tutorial.html'), false, `${page} 仍指向已删除的独立教程页`);
+  }
+  // 首次进大厅自动弹一次，其余页面只在点按钮时弹。
+  assert.ok(read('index.html').includes('data-tutorial-auto="true"'), '大厅要声明自动弹出教程');
+  for (const [page] of PAGES.slice(1)) {
+    assert.equal(read(page).includes('data-tutorial-auto'), false, `${page} 不该自动弹出教程，会打断正在进行的牌局`);
+  }
+});
+
+test('教程弹窗关掉后必须真的收起来（<dialog> 的 [open] 覆盖规则）', () => {
+  // 原生 <dialog> 关闭时靠 UA 的 dialog:not([open]){display:none} 隐藏，
+  // 而作者样式里的 display:flex 会压过它——少了这条覆盖，按 Esc 关掉的教程会一直盖在页面上。
+  const css = read('static/styles.css');
+  assert.match(css, /\.tutorial-dialog:not\(\[open\]\)\s*\{\s*display:\s*none/, 'styles.css 缺少关闭态的覆盖规则');
+  assert.ok(css.includes('.tutorial-dialog::backdrop'), '教程弹窗缺少遮罩样式');
 });
 
 test('[hidden] 必须盖过作者样式，空弹窗不能遮住牌桌', () => {

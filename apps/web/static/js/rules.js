@@ -40,7 +40,7 @@ export const RULE_SECTIONS = [
       '无前注无限注德州扑克，2 至 9 人，每位参赛者起始 1,000 免费虚拟筹码，筹码跨手保留。',
       '每手依次为翻牌前、翻牌（3 张公共牌）、转牌（1 张）、河牌（1 张），每条街各有一次下注轮。',
       '每条街开始时先烧一张牌再发公共牌；每位玩家最终用自己的两张底牌与五张公共牌中的任意组合比较。',
-      '下注轮中从庄家左侧开始按座位顺序行动，每人可选择弃牌、过牌、跟注、加注或全押。',
+      '多人时翻牌前从大盲左侧开始，翻牌后从庄家左侧仍在局中的玩家开始，按座位顺序行动；每人可选择弃牌、过牌、跟注、加注或全押。',
       '所有仍在牌局中的玩家下注额相同时该轮结束；只剩一名未弃牌玩家时立即结束本手，不补发公共牌。',
     ],
   },
@@ -113,6 +113,26 @@ export const RULE_SECTIONS = [
   },
 ];
 
+/** 常见问题。原先挂在新手教程独立页上，教程改成弹窗后移到这里——它是规则答疑，不是教程步骤。 */
+export const RULES_FAQ = [
+  {
+    question: '行动时我不在手机前会怎样？',
+    answer: '90 秒后服务器会自动过牌或弃牌，这一手你只是放弃下注，不会被踢出房间；回来还能继续打下一手。',
+  },
+  {
+    question: '能看别人上一手用什么牌赢的吗？',
+    answer: '可以。整场比赛结束后，本桌成员在核验页可以看到每一手的完整底牌与牌序复算结果。',
+  },
+  {
+    question: '筹码输光了怎么办？',
+    answer: '比赛结束后房主可以重新开始一场，届时所有人统一重置为 1,000 筹码并生成新的比赛标识。',
+  },
+  {
+    question: '这些筹码能换成钱吗？',
+    answer: '不能。所有筹码都是免费虚拟筹码，产品不提供任何充值、提现、道具购买或实物兑换。',
+  },
+];
+
 export function blindTable() {
   return el('table', {className: 'rules__table'}, [
     el('thead', {}, [
@@ -152,7 +172,13 @@ export function renderRules(container) {
     el('p', {text: '起始筹码 1,000，每 10 手升一级，最高 4,500/9,000。'}),
     blindTable(),
   ]);
-  render(container, [...sections, rankings, blinds]);
+  const faq = el('section', {className: 'rules__section'}, [
+    el('h2', {text: '常见问题'}),
+    ...RULES_FAQ.map((item) =>
+      el('div', {className: 'rules__faq'}, [el('h3', {text: item.question}), el('p', {className: 'muted', text: item.answer})]),
+    ),
+  ]);
+  render(container, [...sections, rankings, blinds, faq]);
 }
 
 if (typeof document !== 'undefined') {

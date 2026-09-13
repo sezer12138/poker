@@ -1,118 +1,199 @@
-// 新手教程页：把「从进大厅到打完一手」的完整路径拆成几步，每步配一条实用提示。
-// 内容以数据形式给出，再由 renderTutorial 渲染；模块顶层不访问 window/document，
-// 这样 Node 端可以直接 import 这份数据做静态检查（见 test/tutorial.test.ts）。
+// 新手教程：一个盖在当前页面上的弹窗，六步讲完「认识牌桌 → 怎么行动 → 怎么比大小 → 跟注练习 → 看结算」。
+// 首次进大厅自动弹出（body[data-tutorial-auto="true"]），各页顶栏的 [data-tutorial] 按钮随时能重看。
+// 内容以数据形式给出、渲染只走 util/cards；模块顶层不碰 window/document，
+// 因此 Node 端可以直接 import 这份数据与判分函数做静态检查（见 test/tutorial.test.ts）。
 
-import {el, qs, render} from './util.js';
+import {el, setText, storageGet, storageSet, TUTORIAL_KEY} from './util.js';
+import {cardElement} from './cards.js';
 
-/** 教程步骤。body 是这一步要做的动作，tip 是新手最容易踩的坑。 */
+/** 教程步骤：title 标题、body 这一步要做什么（逐条）、tip 新手最容易踩的坑。 */
 export const TUTORIAL_STEPS = [
   {
-    title: '建房或加入房间',
+    title: '先认识牌桌',
     body: [
-      '在大厅点「创建房间」，填一个房间名并选择机器人数量，2 至 9 人都能开局。',
-      '房主创建后会拿到 6 位房号与一条邀请链接，发给朋友就能拉人进同一桌。',
-      '只想先熟悉一下？加两个机器人自己练手最快。',
+      '每位参赛者起始 1,000 免费虚拟筹码，筹码跨手保留；输光即被淘汰，最后剩下的一名玩家是冠军。',
+      '你自己的两张底牌是正面朝上的，别人的看不到；桌面中央的公共牌所有人共享。',
+      '想先练手，在大厅点「机器人练习」就能单人开一桌（1 人对 3 个机器人），随时退出不扣什么。',
     ],
-    tip: '房主自动坐在 0 号座位。房号不区分大小写，邀请链接里带的是房间令牌，不要随便外发。',
+    tip: '牌桌上的筹码都是免费虚拟筹码，不能充值、提现，也不能兑换任何实物。',
   },
   {
-    title: '等所有人准备',
+    title: '一手牌怎样进行',
     body: [
-      '进入房间后点「准备」，真人需要各自点一次；机器人自动准备。',
-      '至少 2 位参赛者、且所有真人都准备后，房主才能点「开始比赛」。',
-      '准备即表示接受：比赛结束后本桌成员可以核验完整历史牌序（含弃牌者的底牌）。',
+      '小盲和大盲先投入盲注，每人发两张底牌，随后依次开出翻牌 3 张、转牌 1 张、河牌 1 张。',
+      '每条街（翻牌前、翻牌、转牌、河牌）都有一轮下注，轮到你时可以从弃牌、过牌、跟注、加注、全押里选一个。',
+      '盲注 5/10 起，每完成 10 手升一级，升到 4,500/9,000 封顶。',
     ],
-    tip: '开赛后名单锁定，中途进不来人，也不能换座。想加人请在开赛前加。',
+    tip: '翻牌前从大盲左侧开始行动，翻牌后从庄家左侧仍在牌局中的玩家开始；两人单挑时庄家就是小盲，翻牌前先行动。',
   },
   {
-    title: '看牌并行动',
+    title: '轮到你时怎么选',
     body: [
-      '每人起始 1,000 筹码，牌桌上你自己的两张底牌是正面朝上的，别人的看不到。',
-      '轮到你时下面的操作区会亮起来，可选：弃牌、过牌、跟注、加注、全押。',
-      '每次行动有 90 秒；超时会自动过牌（能过牌时）或自动弃牌。',
-      '加注框里填的是「本轮累计投入目标」，不是这一次要多掏多少。',
+      '过牌：没人要求你补筹码，免费看下一张。跟注：补齐到当前下注额。弃牌：放弃这一手，已投入的筹码留在底池里。',
+      '加注框里填的是「本轮累计投入目标」，不是这一次要多掏多少：你已经投入 10，加注到 30，就只需再掏 20。',
+      '全押会一次投入所有剩余筹码，按钮会先让你确认一次再发出去。',
+      '每次行动有 90 秒，超时会自动过牌（能过牌时）或自动弃牌，不会把你踢出房间。',
     ],
-    tip: '底部有「最小/半池/底池/最大」快捷键，拿不准金额时直接点，不用自己算。',
+    tip: '拿不准金额就点快捷按钮（最小 / 半池 / 底池 / 全押），不用自己算。',
   },
   {
-    title: '看清公共牌与底池',
+    title: '用最好的五张牌比大小',
     body: [
-      '桌面中央依次开出翻牌 3 张、转牌 1 张、河牌 1 张，每人用两张底牌与五张公共牌里的任意组合比大小。',
-      '底池按投入金额分层：主池给所有人竞争，边池只在其有资格的玩家之间比较，各自独立结算。',
-      '没人匹配的超额投入会退回本人，弃牌者的筹码留在池里但不再有获奖资格。',
+      '从两张底牌和五张公共牌里挑出最大的五张——可以用 0 张、1 张或 2 张底牌。',
+      '从大到小：同花顺（最高是皇家同花顺）＞ 四条 ＞ 葫芦 ＞ 同花 ＞ 顺子 ＞ 三条 ＞ 两对 ＞ 一对 ＞ 高牌。',
+      '牌型相同时比点数，花色不分大小；完全一样就平分底池，除不尽的余数从庄家左侧依次发。',
     ],
-    tip: '「跟注」按钮上会写实际需要补多少，不用自己盯别人的下注额。',
+    tip: '下面这五张公共牌自己就凑成了「一对 A」——公共牌成牌型时，你的底牌可能一张都用不上。',
+    // 展示用的五张公共牌（A♣ A♦ K♥ 9♠ 7♣），由 draw() 用 cardElement 渲染。
+    cards: [12, 25, 37, 46, 5],
   },
   {
-    title: '每手结束确认结算',
-    body: [
-      '一手结束时弹出结算窗：谁赢了、赢了多少、谁被淘汰，金额逐条列出。',
-      '所有真人点「确认，继续」后立刻开下一手；有人暂时没点也没关系，窗口倒计时结束会自动继续。',
-      '被淘汰的座位不参与确认，只看结果。',
-    ],
-    tip: '结算窗在倒计时结束后会自动收起，所以离开一会儿不会把整桌人卡住。',
+    title: '练习一次跟注',
+    body: ['本轮你已经投入 10，对手把下注提到 30。你想继续留在牌局里、不加注，需要再投入多少？'],
+    tip: '答对这道题才能继续——这正是新手最容易算错的一步。',
+    quiz: {
+      options: [10, 20, 30],
+      answer: 20,
+      correct: '答对了：30 − 10 = 20，再投入 20 就跟上了。加注框里填的永远是累计目标。',
+      wrong: '再算一下：对手本轮已投入 30，你已经投入 10，跟上他还差 20。',
+    },
   },
   {
-    title: '打完一整场并核验',
+    title: '看懂结算，再开下一手',
     body: [
-      '筹码归零即被淘汰，最后剩下的一名玩家是冠军。',
-      '每手发牌前服务器先公布种子承诺，每位真人提交一次随机贡献，牌序由这些输入共同决定。',
-      '整场比赛结束后，本桌成员可以在核验页复算每一手的牌序，确认发牌没有被中途改动。',
+      '每手结束弹出结算窗，逐条列出每个座位这手的净输赢、亮出的牌与牌型、还剩多少筹码。',
+      '活着的真人各点一次「确认，继续」，全部确认后立刻开下一手；被淘汰的和观战者只看结果，没有确认按钮。',
+      '有人一直不点也不会把整桌卡住：结算窗有 8 秒兜底倒计时，到时自动开下一手。',
     ],
-    tip: '比赛进行中不公开核验包——这是为了防止边打边算出别人的底牌。',
+    tip: '整场结束后可以在核验页复算每一手的牌序，确认发牌没有被中途改动。现在可以开始了。',
   },
 ];
 
-/** 常见问题。answers 用纯文本，避免教程页引入富文本渲染。 */
-export const TUTORIAL_FAQ = [
-  {
-    question: '行动时我不在手机前会怎样？',
-    answer: '90 秒后服务器会自动过牌或弃牌，这一手你只是放弃下注，不会被踢出房间；回来还能继续打下一手。',
-  },
-  {
-    question: '能看别人上一手用什么牌赢的吗？',
-    answer: '可以。整场比赛结束后，本桌成员在核验页可以看到每一手的完整底牌与牌序复算结果。',
-  },
-  {
-    question: '筹码输光了怎么办？',
-    answer: '比赛结束后房主可以重新开始一场，届时所有人统一重置为 1,000 筹码并生成新的比赛标识。',
-  },
-  {
-    question: '这些筹码能换成钱吗？',
-    answer: '不能。所有筹码都是免费虚拟筹码，产品不提供任何充值、提现、道具购买或实物兑换。',
-  },
-];
-
-export function renderTutorial(container) {
-  render(
-    container,
-    TUTORIAL_STEPS.map((step, index) =>
-      el('section', {className: 'tutorial__step'}, [
-        el('div', {className: 'tutorial__num', text: String(index + 1)}),
-        el('div', {className: 'tutorial__body'}, [
-          el('h3', {text: step.title}),
-          el('ul', {}, step.body.map((item) => el('li', {text: item}))),
-          el('p', {className: 'tutorial__tip', text: `提示：${step.tip}`}),
-        ]),
-      ]),
-    ),
-  );
+/**
+ * 练习题判分：答对返回鼓励文案，答错返回纠正提示，这道题没有 quiz 时返回 null。
+ * 单独抽出来是为了让 Node 端能直接测「算错一步就不会放行」。
+ */
+export function quizFeedback(step, amount) {
+  const quiz = step?.quiz;
+  if (!quiz) return null;
+  return amount === quiz.answer ? quiz.correct : quiz.wrong;
 }
 
-export function renderFaq(container) {
-  render(
-    container,
-    TUTORIAL_FAQ.map(item =>
-      el('div', {}, [el('h4', {text: item.question}), el('p', {className: 'muted', text: item.answer})]),
-    ),
-  );
+/** 首访自动弹出的条件：页面声明了 data-tutorial-auto，且本地没记过「看过了」。 */
+export function shouldAutoOpen(doc, storageImpl) {
+  return doc?.body?.dataset?.tutorialAuto === 'true' && storageGet(TUTORIAL_KEY, null, storageImpl) !== 'yes';
+}
+
+/**
+ * 建好弹窗并接上各页的 [data-tutorial] 按钮，返回 {open, close} 供调用方复用。
+ * 浏览器里由页面自己调（见文件末尾），测试里注入假 document/存储。
+ */
+export function initTutorial(options = {}) {
+  const doc = options.document ?? globalThis.document;
+  if (!doc || typeof doc.createElement !== 'function') return null;
+  const steps = options.steps ?? TUTORIAL_STEPS;
+  const storage = options.storage;
+
+  const eyebrow = el('p', {className: 'eyebrow'});
+  const title = el('h2', {attrs: {id: 'tutorial-title', tabindex: '-1'}});
+  const content = el('div', {className: 'tutorial-dialog__content'});
+  const feedback = el('p', {className: 'tutorial-dialog__feedback', attrs: {'aria-live': 'polite'}});
+  const prev = el('button', {className: 'btn btn--ghost', type: 'button', text: '上一步', on: {click: () => go(index - 1)}});
+  const next = el('button', {className: 'btn', type: 'button', on: {click: () => (index === steps.length - 1 ? finish() : go(index + 1))}});
+  const skip = el('button', {className: 'btn btn--ghost', type: 'button', text: '跳过', on: {click: () => finish()}});
+  const card = el('div', {className: 'tutorial-dialog__card'}, [
+    eyebrow,
+    title,
+    content,
+    feedback,
+    el('div', {className: 'row row--between'}, [skip, el('div', {className: 'row'}, [prev, next])]),
+  ]);
+  const dialog = el('dialog', {className: 'tutorial-dialog', attrs: {'aria-labelledby': 'tutorial-title'}}, [card]);
+
+  let index = 0;
+  // 每一题各自记住选过的答案：来回翻步骤时不该把已经答对的题重置回未答状态。
+  const chosen = new Map();
+
+  /** 画出当前这一步。整块重建，省得逐节点同步。 */
+  function draw() {
+    const step = steps[index];
+    setText(eyebrow, `新手教程 · ${index + 1} / ${steps.length}`);
+    setText(title, step.title);
+    // 反馈行是常驻节点（不随 content 重建），换步时要自己清干净，否则上一题的评语会跟过来。
+    feedback.className = 'tutorial-dialog__feedback';
+    setText(feedback, '');
+    const blocks = [el('ul', {}, step.body.map((item) => el('li', {text: item})))];
+    if (Array.isArray(step.cards)) {
+      blocks.push(el('div', {className: 'board'}, step.cards.map((card) => cardElement(card, {small: true}))));
+      blocks.push(el('p', {className: 'muted', text: '示例：这五张就是公共牌。'}));
+    }
+    if (step.quiz) blocks.push(quizBlock(step));
+    blocks.push(el('p', {className: 'tutorial__tip', text: `提示：${step.tip}`}));
+    content.replaceChildren(...blocks);
+
+    setText(next, index === steps.length - 1 ? '开始打牌' : '下一步');
+    prev.disabled = index === 0;
+    next.disabled = !passed(step);
+    if (typeof title.focus === 'function') title.focus();
+  }
+
+  /** 这道题是否已经答对。没答、答错都不算——答错要一直改到对，这正是这道题的目的。 */
+  function passed(step) {
+    return !step.quiz || chosen.get(index) === step.quiz.answer;
+  }
+
+  /** 练习题：三个金额按钮 + 一行反馈；答对才把「下一步」打开。 */
+  function quizBlock(step) {
+    const picked = chosen.get(index);
+    const buttons = step.quiz.options.map((amount) =>
+      el('button', {
+        className: `btn ${picked === amount ? (amount === step.quiz.answer ? 'is-right' : 'is-wrong') : 'btn--ghost'}`,
+        type: 'button',
+        text: `再投入 ${amount}`,
+        on: {
+          click: () => {
+            if (picked === step.quiz.answer) return; // 答对后不再改答案，反馈也不该被推翻
+            chosen.set(index, amount);
+            draw();
+          },
+        },
+      }),
+    );
+    const state = picked === undefined ? '' : picked === step.quiz.answer ? 'is-right' : 'is-wrong';
+    feedback.className = `tutorial-dialog__feedback ${state}`.trim();
+    setText(feedback, picked === undefined ? '' : quizFeedback(step, picked));
+    return el('div', {className: 'tutorial-dialog__options'}, buttons);
+  }
+
+  function go(target) {
+    index = Math.max(0, Math.min(steps.length - 1, target));
+    draw();
+  }
+
+  function open() {
+    index = 0;
+    draw();
+    if (typeof doc.body?.append === 'function' && !dialog.isConnected) doc.body.append(dialog);
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+  }
+
+  /**
+   * 收工：关窗并记「看过了」。没点完就跳过也记——否则每进一次大厅就再弹一次，
+   * 新人被反复打扰比错过教程更糟。
+   */
+  function finish() {
+    if (typeof dialog.close === 'function') dialog.close();
+    storageSet(TUTORIAL_KEY, 'yes', storage);
+  }
+
+  for (const button of options.buttons ?? doc.querySelectorAll('[data-tutorial]')) {
+    button.addEventListener('click', open);
+  }
+  if (shouldAutoOpen(doc, storage)) open();
+
+  return {open, close: finish, dialog};
 }
 
 if (typeof document !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', () => {
-    const steps = qs('#tutorial-steps');
-    if (steps) renderTutorial(steps);
-    const faq = qs('#tutorial-faq');
-    if (faq) renderFaq(faq);
-  });
+  document.addEventListener('DOMContentLoaded', () => initTutorial());
 }
