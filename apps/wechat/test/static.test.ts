@@ -14,6 +14,7 @@ const EXPECTED_PAGES = [
   'pages/lobby/lobby',
   'pages/room/room',
   'pages/table/table',
+  'pages/tutorial/tutorial',
   'pages/rules/rules',
   'pages/audit/audit'
 ];
@@ -128,9 +129,14 @@ test('不使用 web-view，品牌色与中文文案齐备', () => {
     assert.ok(!read(file).includes('web-view'), `${relative(file)} 使用了 web-view`);
   }
 
+  // 简约主题的调色板：暖白底、墨色文字、单一品牌绿点缀、黄铜只用于盲注标记。
   const appWxss = read(path.join(WECHAT_ROOT, 'app.wxss'));
+  for (const color of ['#F5F4F0', '#22252A', '#2F6A50', '#A98A4E', '#C0564F']) {
+    assert.ok(appWxss.includes(color), `app.wxss 缺少主题色 ${color}`);
+  }
+  // 旧的深绿主题必须彻底退出，否则会出现半新半旧的界面。
   for (const color of ['#0B3D2E', '#F5EFDC', '#B5A642']) {
-    assert.ok(appWxss.includes(color), `app.wxss 缺少品牌色 ${color}`);
+    assert.ok(!appWxss.includes(color), `app.wxss 仍残留旧主题色 ${color}`);
   }
 
   const roomWxml = read(path.join(WECHAT_ROOT, 'pages/room/room.wxml'));
@@ -139,13 +145,39 @@ test('不使用 web-view，品牌色与中文文案齐备', () => {
   const lobbyWxml = read(path.join(WECHAT_ROOT, 'pages/lobby/lobby.wxml'));
   assert.ok(lobbyWxml.includes('机器人练习'), '大厅缺少机器人练习入口');
   assert.ok(lobbyWxml.includes('创建好友房'), '大厅缺少创建房间入口');
+  assert.ok(lobbyWxml.includes('新手教程'), '大厅缺少新手教程入口');
+});
+
+test('浅色主题：导航栏配色与页面样式表都不再硬编码旧配色', () => {
+  const appJson = readJson(path.join(WECHAT_ROOT, 'app.json'));
+  const window = appJson.window as Record<string, unknown>;
+  assert.equal(window.backgroundColor, '#F5F4F0');
+  assert.equal(window.navigationBarBackgroundColor, '#F5F4F0');
+  // 浅底必须配深字，否则导航标题在浅色背景上看不见。
+  assert.equal(window.navigationBarTextStyle, 'black');
+
+  const legacy = ['#0B3D2E', '#F5EFDC', '#B5A642', '#E4786C', '#10241C', '#B23A2E', '#14503C'];
+  for (const file of walk(WECHAT_ROOT, '.wxss')) {
+    const source = read(file);
+    for (const color of legacy) {
+      assert.ok(!source.includes(color), `${relative(file)} 仍残留旧主题色 ${color}`);
+    }
+    // 色值只在 app.wxss 的 page 变量里定义一次；页面样式一律 var(--x)（rgba 遮罩除外）。
+    if (relative(file) !== 'app.wxss') {
+      assert.ok(!/#[0-9A-Fa-f]{6}/.test(source), `${relative(file)} 硬编码了色值，应改用 app.wxss 的变量`);
+    }
+  }
 });
 
 test('规则页覆盖必需主题', () => {
   const rules = read(path.join(WECHAT_ROOT, 'pages/rules/rules.js'));
-  for (const keyword of ['牌型', '最小加注', '短码全押', '边池', '平局', '单挑', '超时', '淘汰', '核验']) {
+  for (const keyword of ['牌型', '最小加注', '短码全押', '边池', '平局', '单挑', '超时', '淘汰', '核验', '结算']) {
     assert.ok(rules.includes(keyword), `规则页缺少主题：${keyword}`);
   }
+  // 行动时限与结算口径已改为 90 秒 / 8 秒兜底，规则页不能还写着 30 秒。
+  assert.ok(rules.includes('90 秒'), '规则页未说明 90 秒行动时限');
+  assert.ok(!rules.includes('30 秒'), '规则页仍写着旧的 30 秒行动时限');
+  assert.ok(rules.includes('8 秒'), '规则页未说明结算兜底 8 秒');
 });
 
 test('README 明确列出无法验证项', () => {

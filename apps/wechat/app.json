@@ -3,15 +3,16 @@
     "pages/lobby/lobby",
     "pages/room/room",
     "pages/table/table",
+    "pages/tutorial/tutorial",
     "pages/rules/rules",
     "pages/audit/audit"
   ],
   "window": {
     "backgroundTextStyle": "dark",
-    "backgroundColor": "#0B3D2E",
-    "navigationBarBackgroundColor": "#0B3D2E",
+    "backgroundColor": "#F5F4F0",
+    "navigationBarBackgroundColor": "#F5F4F0",
     "navigationBarTitleText": "同桌 · 德州扑克",
-    "navigationBarTextStyle": "white"
+    "navigationBarTextStyle": "black"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",

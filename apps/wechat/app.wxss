@@ -1,7 +1,24 @@
-/* 品牌基础样式：深绿 #0B3D2E 底、奶油 #F5EFDC 字、黄铜 #B5A642 点缀。页面样式只做局部覆盖。 */
+/* 简约主题：暖白底、白色卡片、墨色文字，只在品牌绿与庄家标记上用色。
+   变量只在 page 上定义一次（与 web 端 apps/web/static/styles.css 同一套色值），
+   页面样式只做局部覆盖；改配色只改这里。 */
 page {
-  background: #0B3D2E;
-  color: #F5EFDC;
+  --bg: #F5F4F0;
+  --surface: #FFFFFF;
+  --surface-2: #F0EEE9;
+  --line: #E6E3DC;
+  --line-strong: #D5D1C7;
+  --ink: #22252A;
+  --muted: #6E737B;
+  --accent: #2F6A50;
+  --accent-dark: #245741;
+  --accent-soft: #EAF2EE;
+  --on-accent: #FFFFFF;
+  --brass: #A98A4E;
+  --danger: #C0564F;
+  --ok: #2F7A57;
+
+  background: var(--bg);
+  color: var(--ink);
   font-size: 28rpx;
   line-height: 1.5;
 }
@@ -13,8 +30,8 @@ page {
 }
 
 .card {
-  background: rgba(245, 239, 220, 0.06);
-  border: 1rpx solid rgba(181, 166, 66, 0.35);
+  background: var(--surface);
+  border: 1rpx solid var(--line);
   border-radius: 16rpx;
   padding: 24rpx;
   margin-bottom: 20rpx;
@@ -22,7 +39,8 @@ page {
 
 .card-title {
   font-size: 30rpx;
-  color: #B5A642;
+  font-weight: 600;
+  color: var(--ink);
   margin-bottom: 12rpx;
 }
 
@@ -32,9 +50,9 @@ page {
   padding: 24rpx 0;
   margin-top: 16rpx;
   border-radius: 12rpx;
-  border: 1rpx solid rgba(181, 166, 66, 0.4);
-  background: rgba(245, 239, 220, 0.1);
-  color: #F5EFDC;
+  border: 1rpx solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink);
   font-size: 30rpx;
   text-align: center;
   box-sizing: border-box;
@@ -45,8 +63,9 @@ page {
 }
 
 .btn-primary {
-  background: #B5A642;
-  color: #0B3D2E;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -61,38 +80,38 @@ page {
 }
 
 .muted {
-  color: rgba(245, 239, 220, 0.62);
+  color: var(--muted);
   font-size: 24rpx;
 }
 
 .brass {
-  color: #B5A642;
+  color: var(--brass);
 }
 
 .danger {
-  color: #E4786C;
+  color: var(--danger);
 }
 
 .tag {
   display: inline-block;
   padding: 2rpx 12rpx;
   border-radius: 999rpx;
-  border: 1rpx solid rgba(181, 166, 66, 0.5);
-  color: #B5A642;
+  border: 1rpx solid var(--line-strong);
+  color: var(--muted);
   font-size: 22rpx;
 }
 
 .input {
-  background: rgba(245, 239, 220, 0.08);
-  border: 1rpx solid rgba(181, 166, 66, 0.35);
+  background: var(--surface-2);
+  border: 1rpx solid var(--line);
   border-radius: 12rpx;
   padding: 18rpx;
-  color: #F5EFDC;
+  color: var(--ink);
 }
 
 .notice {
-  background: rgba(181, 166, 66, 0.14);
-  border-left: 6rpx solid #B5A642;
+  background: var(--accent-soft);
+  border-left: 6rpx solid var(--accent);
   border-radius: 8rpx;
   padding: 16rpx;
   font-size: 24rpx;
@@ -100,7 +119,7 @@ page {
 }
 
 .error {
-  color: #E4786C;
+  color: var(--danger);
   font-size: 24rpx;
   margin-top: 12rpx;
 }

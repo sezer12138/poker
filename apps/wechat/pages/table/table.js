@@ -1,6 +1,6 @@
 /**
  * 牌桌：座位与 D/小盲/大盲标记、倒计时（deadline - (Date.now() + offset)）、
- * 公共牌、自己的底牌、筹码/投入、主池边池、事件流、操作区。
+ * 公共牌、自己的底牌、筹码/投入、主池边池、事件流、操作区、每手结算确认弹窗、背景音乐。
  * 合法行动一律取 hand.legal（服务端唯一裁判），客户端不自行判断合法性。
  */
 const api = require('../../utils/api.js');
@@ -9,6 +9,8 @@ const wsUtil = require('../../utils/ws.js');
 const cards = require('../../utils/cards.js');
 const format = require('../../utils/format.js');
 const fairness = require('../../utils/fairness.js');
+const settleUtil = require('../../utils/settle.js');
+const musicUtil = require('../../utils/music.js');
 const config = require('../../config.js');
 
 const SEAT_COUNT = 9;
@@ -258,7 +260,10 @@ Page({
     error: '',
     busy: false,
     finished: false,
-    winnerText: ''
+    winnerText: '',
+    dialog: null,
+    dialogTimerText: '',
+    musicText: '音乐：关'
   },
 
   onLoad(query) {
@@ -290,6 +295,7 @@ Page({
         self.openSocket();
         self.refresh();
         self.startTick();
+        self.resumeMusic();
       },
       function (err) {
         self.setData({ error: format.errorText(err) });
@@ -304,6 +310,38 @@ Page({
       this.client.close();
       this.client = null;
     }
+    // 离开牌桌就停音乐：小程序页面隐藏后定时器仍在跑，不停会一直出声。
+    if (this.music) this.music.stop();
+  },
+
+  /** 只有玩家自己开过音乐才会在回到牌桌时续播，不擅自出声。 */
+  resumeMusic() {
+    const music = this.setupMusic();
+    const wanted = wx.getStorageSync(config.storage.music) === 'on';
+    if (wanted && !music.state().playing) music.start();
+    this.setData({ musicText: this.musicLabel(music.state().playing) });
+  },
+
+  setupMusic() {
+    if (!this.music) this.music = musicUtil.createMusic({});
+    return this.music;
+  },
+
+  musicLabel(playing) {
+    // 没有 Web Audio 能力时如实说「不可用」，而不是让按钮点着没反应。
+    if (!this.music || !this.music.state().supported) return '音乐：不可用';
+    return playing ? '音乐：开' : '音乐：关';
+  },
+
+  onMusic() {
+    const music = this.setupMusic();
+    if (!music.state().supported) {
+      this.setData({ musicText: this.musicLabel(false) });
+      return;
+    }
+    const playing = music.toggle();
+    wx.setStorageSync(config.storage.music, playing ? 'on' : 'off');
+    this.setData({ musicText: this.musicLabel(playing) });
   },
 
   openSocket() {
@@ -372,6 +410,13 @@ Page({
     if (this.data.nextHandText !== next.text) patch.nextHandText = next.text;
     const hasNextHand = typeof room.nextHandAt === 'number' && !next.expired;
     if (this.data.hasNextHand !== hasNextHand) patch.hasNextHand = hasNextHand;
+    // 结算弹窗里的兜底倒计时：到点服务端会自己开下一手，玩家点不点确认都不会卡住。
+    const dialogTimerText = this.data.dialog
+      ? typeof room.nextHandAt === 'number'
+        ? '倒计时结束自动开下一手 · ' + next.text
+        : ''
+      : '';
+    if (this.data.dialogTimerText !== dialogTimerText) patch.dialogTimerText = dialogTimerText;
     if (Object.keys(patch).length > 0) this.setData(patch);
   },
 
@@ -383,7 +428,11 @@ Page({
     const raiseTarget = action.canRaise
       ? Math.max(action.raiseMin, Math.min(action.raiseMax, this.data.raiseTarget || action.raiseMin))
       : 0;
+    // 结算确认弹窗：比赛结束时服务端不再开确认门（settle 为空），弹窗自然收起。
+    const dialogModel = settleUtil.buildResultDialog(hand, room.members, room.settle, room.viewerSeat);
+    const dialog = dialogModel && this.dismissedHand !== dialogModel.handNo ? dialogModel : null;
     this.setData({
+      dialog: dialog,
       room: room,
       hand: hand,
       viewerSeat: typeof room.viewerSeat === 'number' ? room.viewerSeat : null,
@@ -481,12 +530,13 @@ Page({
     this.setData({ busy: false, error: format.errorText(err) });
   },
 
-  sendAction(action) {
+  /** 统一的命令发送：行动与结算确认共用同一套失败处理与状态应用。 */
+  sendCommand(payload) {
     const self = this;
     const room = this.data.room;
-    if (!room || !room.hand || this.data.busy) return;
+    if (!room || this.data.busy) return;
     this.setData({ busy: true, error: '' });
-    api.command(room.id, { type: 'action', action: action, expectedVersion: room.version }).then(
+    api.command(room.id, payload).then(
       function (next) {
         self.setData({ busy: false });
         self.applyRoom(next);
@@ -495,6 +545,30 @@ Page({
         self.fail(err);
       }
     );
+  },
+
+  sendAction(action) {
+    const room = this.data.room;
+    if (!room || !room.hand) return;
+    this.sendCommand({ type: 'action', action: action, expectedVersion: room.version });
+  },
+
+  /**
+   * 结算确认。服务端按 handNo 校验并豁免版本检查：两个真人几乎同时点确认时，
+   * 后到者不会吃 409，旧手号的确认也串不到下一手的结算窗口。
+   */
+  onSettleAck() {
+    const dialog = this.data.dialog;
+    if (!dialog || this.data.busy) return;
+    this.sendCommand({ type: 'settleAck', handNo: dialog.handNo });
+  },
+
+  /** 被淘汰 / 观战时可以关掉弹窗，记下手号免得下一帧又被重新弹出来。 */
+  onDismissDialog() {
+    const dialog = this.data.dialog;
+    if (!dialog) return;
+    this.dismissedHand = dialog.handNo;
+    this.setData({ dialog: null, dialogTimerText: '' });
   },
 
   onFold() {

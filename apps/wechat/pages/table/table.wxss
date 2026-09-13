@@ -8,12 +8,12 @@
   display: flex;
   justify-content: space-between;
   font-size: 22rpx;
-  color: rgba(245, 239, 220, 0.75);
+  color: var(--muted);
   padding: 4rpx 8rpx 12rpx;
 }
 
 .topbar .link {
-  color: #B5A642;
+  color: var(--accent);
 }
 
 .felt {
@@ -21,8 +21,8 @@
   height: 760rpx;
   margin: 8rpx 0 16rpx;
   border-radius: 50% / 42%;
-  border: 2rpx solid rgba(181, 166, 66, 0.45);
-  background: radial-gradient(circle at 50% 45%, rgba(245, 239, 220, 0.08), rgba(4, 26, 19, 0.85));
+  border: 2rpx solid var(--line-strong);
+  background: var(--surface);
 }
 
 .center {
@@ -37,13 +37,13 @@
 .pot-label {
   display: block;
   font-size: 22rpx;
-  color: rgba(245, 239, 220, 0.6);
+  color: var(--muted);
 }
 
 .pot-value {
   display: block;
   font-size: 40rpx;
-  color: #B5A642;
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -58,8 +58,9 @@
   height: 88rpx;
   margin: 0 4rpx;
   border-radius: 8rpx;
-  background: #F5EFDC;
-  color: #10241C;
+  border: 1rpx solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -67,18 +68,18 @@
 }
 
 .board-card.red {
-  color: #B23A2E;
+  color: var(--danger);
 }
 
 .board-card.empty {
-  background: rgba(245, 239, 220, 0.08);
-  border: 1rpx dashed rgba(245, 239, 220, 0.25);
+  background: var(--surface-2);
+  border: 1rpx dashed var(--line-strong);
 }
 
 .next-hand {
   margin-top: 12rpx;
   font-size: 22rpx;
-  color: #B5A642;
+  color: var(--accent);
 }
 
 .seat {
@@ -88,8 +89,8 @@
   margin-top: -70rpx;
   padding: 8rpx;
   border-radius: 12rpx;
-  border: 1rpx solid rgba(181, 166, 66, 0.28);
-  background: rgba(4, 26, 19, 0.72);
+  border: 1rpx solid var(--line);
+  background: var(--surface);
   text-align: center;
   box-sizing: border-box;
 }
@@ -100,12 +101,12 @@
 }
 
 .seat.self {
-  border-color: #B5A642;
-  background: rgba(181, 166, 66, 0.16);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .seat.actor {
-  box-shadow: 0 0 0 2rpx #B5A642;
+  box-shadow: 0 0 0 2rpx var(--accent);
 }
 
 .seat.folded {
@@ -135,8 +136,9 @@
   height: 56rpx;
   margin: 0 3rpx;
   border-radius: 5rpx;
-  background: #F5EFDC;
-  color: #10241C;
+  border: 1rpx solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
   font-size: 20rpx;
   display: flex;
   align-items: center;
@@ -144,35 +146,42 @@
 }
 
 .mini-card.red {
-  color: #B23A2E;
+  color: var(--danger);
 }
 
 .mini-card.back {
-  background: repeating-linear-gradient(45deg, #0B3D2E, #0B3D2E 6rpx, #14503C 6rpx, #14503C 12rpx);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface-2),
+    var(--surface-2) 6rpx,
+    var(--line) 6rpx,
+    var(--line) 12rpx
+  );
 }
 
 .seat-stack {
   font-size: 20rpx;
-  color: #F5EFDC;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .seat-bet {
   font-size: 18rpx;
-  color: rgba(245, 239, 220, 0.62);
+  color: var(--muted);
 }
 
 .seat-award {
   font-size: 20rpx;
-  color: #B5A642;
+  color: var(--accent);
 }
 
 .seat-timer {
   font-size: 20rpx;
-  color: #B5A642;
+  color: var(--accent);
 }
 
 .seat-timer.urgent {
-  color: #E4786C;
+  color: var(--danger);
 }
 
 .pos {
@@ -184,16 +193,16 @@
   line-height: 34rpx;
   padding: 0 6rpx;
   border-radius: 999rpx;
-  background: #F5EFDC;
-  color: #10241C;
+  background: var(--surface-2);
+  color: var(--ink);
   font-size: 18rpx;
   text-align: center;
 }
 
 .pos.sb,
 .pos.bb {
-  background: #B5A642;
-  color: #0B3D2E;
+  background: var(--brass);
+  color: var(--on-accent);
 }
 
 .result,
@@ -202,11 +211,24 @@
 .events,
 .finish,
 .footer {
-  background: rgba(245, 239, 220, 0.06);
-  border: 1rpx solid rgba(181, 166, 66, 0.3);
+  background: var(--surface);
+  border: 1rpx solid var(--line);
   border-radius: 14rpx;
   padding: 20rpx;
   margin-bottom: 16rpx;
+}
+
+/* 正负金额：赢用品牌绿、输用危险红，与服务端 settle.changes 的符号一致。 */
+.amount-win {
+  color: var(--ok);
+}
+
+.amount-lose {
+  color: var(--danger);
+}
+
+.amount-none {
+  color: var(--muted);
 }
 
 .quick {
@@ -221,18 +243,18 @@
   margin: 6rpx;
   padding: 10rpx 0;
   border-radius: 10rpx;
-  border: 1rpx solid rgba(181, 166, 66, 0.45);
+  border: 1rpx solid var(--line-strong);
   text-align: center;
 }
 
 .quick-label {
   font-size: 24rpx;
-  color: #B5A642;
+  color: var(--accent);
 }
 
 .quick-add {
   font-size: 20rpx;
-  color: rgba(245, 239, 220, 0.62);
+  color: var(--muted);
 }
 
 .raise-box {
@@ -247,8 +269,8 @@
   line-height: 64rpx;
   text-align: center;
   border-radius: 10rpx;
-  border: 1rpx solid rgba(181, 166, 66, 0.45);
-  color: #B5A642;
+  border: 1rpx solid var(--line-strong);
+  color: var(--accent);
 }
 
 .raise-input {
@@ -257,15 +279,15 @@
   height: 64rpx;
   padding: 0 16rpx;
   border-radius: 10rpx;
-  border: 1rpx solid rgba(181, 166, 66, 0.45);
-  background: rgba(245, 239, 220, 0.08);
-  color: #F5EFDC;
+  border: 1rpx solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
   text-align: center;
 }
 
 .raise-range {
   font-size: 20rpx;
-  color: rgba(245, 239, 220, 0.6);
+  color: var(--muted);
 }
 
 .btns {
@@ -284,7 +306,85 @@
 
 .event {
   font-size: 22rpx;
-  color: rgba(245, 239, 220, 0.78);
+  color: var(--ink);
   padding: 6rpx 0;
-  border-bottom: 1rpx solid rgba(181, 166, 66, 0.12);
+  border-bottom: 1rpx solid var(--line);
+}
+
+/* 结算确认弹窗：铺满全屏，挡住牌桌，逼玩家先看一眼谁赢谁输。 */
+.dialog-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(20, 24, 28, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  box-sizing: border-box;
+  z-index: 100;
+}
+
+.dialog {
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 20rpx;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.dialog-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.dialog-subtitle {
+  font-size: 24rpx;
+  color: var(--muted);
+  margin-bottom: 20rpx;
+}
+
+.dialog-row {
+  display: flex;
+  align-items: baseline;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.dialog-name {
+  flex: 1 1 auto;
+  font-size: 26rpx;
+}
+
+.dialog-detail {
+  font-size: 22rpx;
+  color: var(--muted);
+  margin-right: 16rpx;
+}
+
+.dialog-amount {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.dialog-acks {
+  margin-top: 20rpx;
+  font-size: 24rpx;
+  color: var(--muted);
+}
+
+.dialog-timer {
+  margin-top: 6rpx;
+  color: var(--accent);
+}
+
+.dialog-note {
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: var(--muted);
 }

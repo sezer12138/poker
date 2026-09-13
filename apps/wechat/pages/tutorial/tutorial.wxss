@@ -1,0 +1,44 @@
+.tutorial {
+  padding-bottom: 60rpx;
+}
+
+.step-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.step-num {
+  width: 40rpx;
+  height: 40rpx;
+  line-height: 40rpx;
+  margin-right: 12rpx;
+  border-radius: 999rpx;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 24rpx;
+  text-align: center;
+}
+
+.step-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.tip {
+  margin-top: 12rpx;
+  padding: 12rpx 16rpx;
+  border-radius: 8rpx;
+  background: var(--surface-2);
+  font-size: 24rpx;
+  color: var(--muted);
+}
+
+.faq {
+  margin-bottom: 16rpx;
+}
+
+.faq-q {
+  font-size: 28rpx;
+  margin-bottom: 4rpx;
+}

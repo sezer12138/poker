@@ -564,3 +564,170 @@ test('核验页按比赛号取本地留存：第二局的第 1 手不会被上�
   });
   assert.equal(context.data.mismatchCount, 1);
 });
+
+/**
+ * 每手结算确认：弹窗只在服务端开了确认门时出现，金额来自 settle.changes，
+ * 确认命令带 handNo（服务端据此防止旧确认串到下一手）。
+ */
+function settledRoom(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return baseRoom({
+    hand: {
+      ...(baseRoom().hand as Record<string, unknown>),
+      id: 8,
+      street: 'settled',
+      actor: null,
+      legal: null,
+      players: [
+        {seat: 0, stack: 1100, roundBet: 0, committed: 0, folded: false, hole: []},
+        {seat: 1, stack: 800, roundBet: 0, committed: 0, folded: false, hole: []},
+        {seat: 2, stack: 1000, roundBet: 0, committed: 0, folded: false, hole: []}
+      ],
+      result: {
+        pots: [{amount: 100, eligible: [0, 1, 2]}],
+        awards: [{seat: 0, amount: 100}],
+        refunds: []
+      }
+    },
+    settle: {
+      handNo: 8,
+      acks: [],
+      required: [1],
+      changes: [
+        {seat: 0, delta: 50},
+        {seat: 1, delta: -50},
+        {seat: 2, delta: 0}
+      ]
+    },
+    nextHandAt: 1200000 + 8000,
+    deadline: null,
+    ...overrides
+  });
+}
+
+test('结算确认弹窗：列出每人净输赢，确认门开着才给确认按钮', () => {
+  const {context} = tablePage();
+  invoke(context, 'applyRoom', settledRoom());
+  const dialog = context.data.dialog as {
+    handNo: number;
+    title: string;
+    summary: string;
+    canAck: boolean;
+    ackText: string;
+    rows: {seat: number; name: string; amount: string}[] | null;
+  } | null;
+  assert.ok(dialog, '服务端开了确认门就应该弹窗');
+  assert.equal(dialog.handNo, 8);
+  assert.equal(dialog.title, '第 8 手结算');
+  assert.equal(dialog.summary, '房主 赢下 100 的底池', '副标题只说谁赢下多大的池');
+  assert.deepStrictEqual(
+    (dialog.rows as {seat: number; amount: string}[]).map((row) => `${row.seat}:${row.amount}`),
+    ['0:+50', '2:0', '1:-50'],
+    '按净输赢从高到低排'
+  );
+  assert.equal(dialog.canAck, true, '自己在 required 里');
+  assert.equal(dialog.ackText, '0/1');
+
+  // 服务端没开确认门（比赛已结束）时不弹窗。
+  invoke(context, 'applyRoom', settledRoom({settle: null}));
+  assert.equal(context.data.dialog, null);
+});
+
+test('结算确认按钮发 settleAck，带当前手号且不带 expectedVersion', async () => {
+  const wx = createWx();
+  const {context} = tablePage(wx);
+  invoke(context, 'applyRoom', settledRoom());
+  invoke(context, 'onSettleAck');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(wx.requests.length, 1);
+  const body = wx.requests[0]!.data as Record<string, unknown>;
+  assert.equal(body.type, 'settleAck');
+  assert.equal(body.handNo, 8, '必须带手号，否则旧确认会串到下一手');
+  assert.equal(body.expectedVersion, undefined, '服务端豁免版本检查，不传版本号');
+});
+
+test('被淘汰 / 观战时不给确认按钮，可以关掉弹窗且不会立刻重新弹出', () => {
+  // required 里没有自己：只能看结果。
+  const {context} = tablePage();
+  invoke(context, 'applyRoom', settledRoom({settle: {handNo: 8, acks: [], required: [0], changes: []}}));
+  assert.equal((context.data.dialog as {canAck: boolean}).canAck, false);
+
+  invoke(context, 'onDismissDialog');
+  assert.equal(context.data.dialog, null);
+  invoke(context, 'applyRoom', settledRoom());
+  const afterDismiss = context.data.dialog as {handNo: number} | null;
+  assert.equal(afterDismiss, null, '同一手关闭后不再弹出来');
+
+  // 下一手开始时手号变了，弹窗重新可以出现。
+  invoke(context, 'applyRoom', settledRoom({settle: {handNo: 9, acks: [], required: [1], changes: []}}));
+  const nextHand = context.data.dialog as {handNo: number} | null;
+  assert.equal(nextHand?.handNo, 9);
+});
+
+test('弹窗里的倒计时按 nextHandAt 走，到点后提示正在开下一手', () => {
+  const {context} = tablePage();
+  invoke(context, 'applyRoom', settledRoom());
+  assert.equal(context.data.dialogTimerText, '倒计时结束自动开下一手 · 8.0s');
+
+  // deadline 已经过去：服务端的兜底定时器随时会把下一手发出来。
+  invoke(context, 'applyRoom', settledRoom({nextHandAt: 1000, serverTime: 1200000}));
+  assert.equal(context.data.dialogTimerText, '倒计时结束自动开下一手 · 0.0s');
+
+  // 房间没有兜底时间时只说明「等其他人确认」，不显示一个假的倒计时。
+  invoke(context, 'applyRoom', settledRoom({nextHandAt: null}));
+  assert.equal(context.data.dialogTimerText, '');
+});
+
+test('音乐开关：有能力时开关并记住偏好，没能力时如实显示不可用', () => {
+  // 默认桩模拟支持 Web Audio 的基础库。
+  const {wx, context} = tablePage();
+  invoke(context, 'resumeMusic');
+  assert.equal(context.data.musicText, '音乐：关', '没开过就不出声');
+  invoke(context, 'onMusic');
+  assert.equal(context.data.musicText, '音乐：开');
+  assert.equal(wx.storage.get('poker.music'), 'on');
+  assert.equal(wx.audioContexts.length, 1);
+  assert.ok(wx.audioContexts[0]!.oscillators.length > 0, '开了就要真的排上音符');
+
+  invoke(context, 'onMusic');
+  assert.equal(context.data.musicText, '音乐：关');
+  assert.equal(wx.storage.get('poker.music'), 'off');
+
+  // 老基础库：没有 createWebAudioContext，按钮置灰而不是假装能放。
+  const legacy = tablePage(createWx({audio: 'missing'}));
+  invoke(legacy.context, 'resumeMusic');
+  assert.equal(legacy.context.data.musicText, '音乐：不可用');
+  invoke(legacy.context, 'onMusic');
+  assert.equal(legacy.context.data.musicText, '音乐：不可用');
+  assert.equal(legacy.wx.audioContexts.length, 0);
+});
+
+test('离开牌桌停掉音乐，回到牌桌时按偏好续播', () => {
+  const {wx, context} = tablePage();
+  invoke(context, 'resumeMusic');
+  invoke(context, 'onMusic');
+  invoke(context, 'detach');
+  const context2 = wx.audioContexts[0]!;
+  const notes = context2.oscillators.length;
+  context2.currentTime = 40;
+  invoke(context, 'syncClock');
+  assert.equal(context2.oscillators.length, notes, '页面隐藏后不该继续排音');
+
+  invoke(context, 'resumeMusic');
+  assert.equal(context.data.musicText, '音乐：开', '偏好在，回来就续播');
+});
+
+test('大厅：新手教程入口跳到教程页，并记下已看过', () => {
+  const wx = createWx();
+  const context = createPageContext(createLoader({wx, timers: createTimers()}), 'pages/lobby/lobby.js');
+  invoke(context, 'onLoad', {});
+  assert.equal(context.data.showGuide, true, '第一次进大厅要显示引导条');
+  invoke(context, 'onTutorial');
+  assert.deepStrictEqual(wx.navigations, ['/pages/tutorial/tutorial']);
+  assert.equal(wx.storage.get('poker.tutorialSeen'), true);
+  assert.equal(context.data.showGuide, false);
+
+  // 已经看过：再进大厅不再打扰。
+  const again = createPageContext(createLoader({wx, timers: createTimers()}), 'pages/lobby/lobby.js');
+  invoke(again, 'onLoad', {});
+  assert.equal(again.data.showGuide, false);
+});

@@ -6,6 +6,8 @@
 
   <view class="notice" wx:if="{{notice}}">{{notice}}</view>
 
+  <view class="notice guide" wx:if="{{showGuide}}" bindtap="onTutorial">{{guideText}} ›</view>
+
   <view class="card">
     <view class="card-title">身份</view>
     <view class="row">
@@ -43,6 +45,7 @@
   </view>
 
   <view class="card">
+    <button class="btn" bindtap="onTutorial">新手教程</button>
     <button class="btn" bindtap="onRules">规则说明</button>
   </view>
 

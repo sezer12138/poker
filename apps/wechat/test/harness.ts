@@ -48,6 +48,39 @@ export interface FakeSocketTask {
   emitClose(code?: number, reason?: string): void;
 }
 
+export interface FakeAudioOscillator {
+  type: string;
+  frequency: {value: number};
+  startedAt: number | null;
+  stoppedAt: number | null;
+  start(at: number): void;
+  stop(at: number): void;
+  /** 与小程序真实实现一致：不返回目标节点，所以生产代码不能写成链式 connect。 */
+  connect(node: unknown): void;
+}
+
+export interface FakeAudioGain {
+  gain: {
+    value: number;
+    setValueAtTime(value: number, at: number): void;
+    linearRampToValueAtTime(value: number, at: number): void;
+    exponentialRampToValueAtTime(value: number, at: number): void;
+  };
+  connect(node: unknown): void;
+}
+
+export interface FakeAudioContext {
+  currentTime: number;
+  state: string;
+  destination: {name: string};
+  resumes: number;
+  oscillators: FakeAudioOscillator[];
+  gains: FakeAudioGain[];
+  resume(): Promise<void>;
+  createOscillator(): FakeAudioOscillator;
+  createGain(): FakeAudioGain;
+}
+
 export interface WxMock {
   requests: RecordedRequest[];
   sockets: FakeSocketTask[];
@@ -57,8 +90,10 @@ export interface WxMock {
   randomCalls: number;
   randomLengths: number[];
   loginCalls: number;
+  audioContexts: FakeAudioContext[];
   request(options: WxRequestOptions): void;
   connectSocket(options: {url: string}): FakeSocketTask;
+  createWebAudioContext(): FakeAudioContext;
   getRandomValues(options: {
     length: number;
     success?: (res: {randomValues: ArrayBuffer}) => void;
@@ -75,6 +110,55 @@ export interface WxMock {
   showToast(options: {title?: string}): void;
 }
 
+/** 假的 WebAudioContext：只记录排了哪些音、什么时候排的，不真的发声。 */
+export function createAudioContext(): FakeAudioContext {
+  const context: FakeAudioContext = {
+    currentTime: 0,
+    state: 'running',
+    destination: {name: 'destination'},
+    resumes: 0,
+    oscillators: [],
+    gains: [],
+    resume() {
+      context.resumes += 1;
+      return Promise.resolve();
+    },
+    createOscillator() {
+      const oscillator: FakeAudioOscillator = {
+        type: '',
+        frequency: {value: 0},
+        startedAt: null,
+        stoppedAt: null,
+        start(at) {
+          oscillator.startedAt = at;
+        },
+        stop(at) {
+          oscillator.stoppedAt = at;
+        },
+        connect() {
+          // 小程序真实实现不返回目标节点，链式 connect 会当场报错，这里刻意保持一致。
+        }
+      };
+      context.oscillators.push(oscillator);
+      return oscillator;
+    },
+    createGain() {
+      const gain: FakeAudioGain = {
+        gain: {
+          value: 1,
+          setValueAtTime() {},
+          linearRampToValueAtTime() {},
+          exponentialRampToValueAtTime() {}
+        },
+        connect() {}
+      };
+      context.gains.push(gain);
+      return gain;
+    }
+  };
+  return context;
+}
+
 export interface WxOptions {
   /** 返回 undefined 时使用默认 200 + {}。 */
   respond?: (request: RecordedRequest, index: number) => {statusCode: number; data: unknown} | undefined;
@@ -82,6 +166,8 @@ export interface WxOptions {
   randomBytes?: number[];
   login?: 'ok' | 'fail' | 'missing';
   loginCode?: string;
+  /** 默认 ok（基础库 2.19+ 有 Web Audio）；missing 模拟老基础库，属性本身不存在。 */
+  audio?: 'ok' | 'missing';
 }
 
 /** 可控时钟：测试驱动心跳与重连，不依赖真实定时器。 */
@@ -148,9 +234,11 @@ export function createWx(options: WxOptions = {}): WxMock {
   const storage = new Map<string, unknown>();
   const clipboard: string[] = [];
   const navigations: string[] = [];
+  const audioContexts: FakeAudioContext[] = [];
   const randomBytes = options.randomBytes ?? Array.from({length: 32}, (_value, index) => index);
   const randomMode = options.random ?? 'ok';
   const loginMode = options.login ?? 'ok';
+  const audioMode = options.audio ?? 'ok';
 
   const wx: WxMock = {
     requests,
@@ -161,6 +249,7 @@ export function createWx(options: WxOptions = {}): WxMock {
     randomCalls: 0,
     randomLengths: [],
     loginCalls: 0,
+    audioContexts,
 
     request(requestOptions) {
       const record: RecordedRequest = {
@@ -226,6 +315,12 @@ export function createWx(options: WxOptions = {}): WxMock {
       return task;
     },
 
+    createWebAudioContext() {
+      const context = createAudioContext();
+      audioContexts.push(context);
+      return context;
+    },
+
     getRandomValues(randomOptions) {
       wx.randomCalls += 1;
       wx.randomLengths.push(randomOptions.length);
@@ -273,6 +368,7 @@ export function createWx(options: WxOptions = {}): WxMock {
   // 模拟不支持该能力的基础库：属性本身不存在，而不是调用时报错。
   if (randomMode === 'missing') delete (wx as Partial<WxMock>).getRandomValues;
   if (loginMode === 'missing') delete (wx as Partial<WxMock>).login;
+  if (audioMode === 'missing') delete (wx as Partial<WxMock>).createWebAudioContext;
   return wx;
 }
 

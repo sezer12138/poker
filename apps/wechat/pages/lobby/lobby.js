@@ -1,8 +1,9 @@
 /**
- * 大厅：昵称、创建房间（0-8 机器人）、房间码加入、邀请进入、机器人练习、规则入口。
+ * 大厅：昵称、创建房间（0-8 机器人）、房间码加入、邀请进入、机器人练习、教程与规则入口。
  */
 const api = require('../../utils/api.js');
 const auth = require('../../utils/auth.js');
+const config = require('../../config.js');
 const format = require('../../utils/format.js');
 
 Page({
@@ -16,6 +17,9 @@ Page({
     userName: '',
     modeText: '',
     notice: '',
+    guideText: config.notice.firstVisit,
+    // 没看过教程才显示引导条；本机看过一次就不再打扰。
+    showGuide: false,
     busy: false,
     error: ''
   },
@@ -23,7 +27,8 @@ Page({
   onLoad(query) {
     this.setData({
       invite: (query && query.invite) || '',
-      code: (query && query.code) || ''
+      code: (query && query.code) || '',
+      showGuide: !wx.getStorageSync(config.storage.tutorialSeen)
     });
     this.restore();
   },
@@ -159,6 +164,13 @@ Page({
         );
       }
     });
+  },
+
+  onTutorial() {
+    // 点过就记下：引导条只在第一次进来时出现一次。
+    wx.setStorageSync(config.storage.tutorialSeen, true);
+    if (this.data.showGuide) this.setData({ showGuide: false });
+    wx.navigateTo({ url: '/pages/tutorial/tutorial' });
   },
 
   onRules() {
