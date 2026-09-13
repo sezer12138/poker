@@ -20,7 +20,7 @@
 
 /* 首次进入的教程引导条：整条可点，点完记下已看过。 */
 .guide {
-  border-left-color: var(--brass);
+  border-left-color: var(--accent);
 }
 
 .nick {

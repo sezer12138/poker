@@ -36,7 +36,7 @@
         <view class="muted">{{item.seatText}} · 筹码 {{item.stackText}}</view>
       </view>
       <view class="member-right">
-        <text class="{{item.ready ? 'brass' : 'muted'}}">{{item.readyText}}</text>
+        <text class="{{item.ready ? 'accent' : 'muted'}}">{{item.readyText}}</text>
         <text class="remove" wx:if="{{item.canRemove}}" data-seat="{{item.seat}}" bindtap="onRemoveBot">移除</text>
       </view>
     </view>

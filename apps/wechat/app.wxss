@@ -1,21 +1,24 @@
-/* 简约主题：暖白底、白色卡片、墨色文字，只在品牌绿与庄家标记上用色。
-   变量只在 page 上定义一次（与 web 端 apps/web/static/styles.css 同一套色值），
-   页面样式只做局部覆盖；改配色只改这里。 */
+/* 简约主题：浅灰底、低饱和绿牌桌、白色卡片、墨色文字，全站只有一种强调色（品牌绿），
+   没有金色/铜色点缀。变量只在 page 上定义一次（与 web 端 apps/web/static/styles.css
+   同一套色值，改色要两端一起改），页面样式只做局部覆盖。 */
 page {
-  --bg: #F5F4F0;
+  --bg: #F4F6F5;
   --surface: #FFFFFF;
-  --surface-2: #F0EEE9;
-  --line: #E6E3DC;
-  --line-strong: #D5D1C7;
-  --ink: #22252A;
-  --muted: #6E737B;
-  --accent: #2F6A50;
-  --accent-dark: #245741;
-  --accent-soft: #EAF2EE;
+  --surface-2: #EDF3EF;
+  --line: #D9E3DD;
+  --line-strong: #CDDDD3;
+  --ink: #243C32;
+  --muted: #64756D;
+  --accent: #28694F;
+  --accent-dark: #256B50;
+  --accent-soft: #F0F7F2;
   --on-accent: #FFFFFF;
-  --brass: #A98A4E;
-  --danger: #C0564F;
-  --ok: #2F7A57;
+  /* 牌桌毡面：比 --surface-2 稍深一点，让椭圆桌面从浅灰底上浮出来。 */
+  --felt: #E5EEE9;
+  /* 牌背：低饱和的深绿，和毡面拉开层次又不抢牌面。与 web --card-back 同值。 */
+  --card-back: #678778;
+  --danger: #B3261E;
+  --ok: #287455;
 
   background: var(--bg);
   color: var(--ink);
@@ -84,8 +87,9 @@ page {
   font-size: 24rpx;
 }
 
-.brass {
-  color: var(--brass);
+/* 强调文字：金额、准备状态、核验结果这类要抢眼的地方，一律走品牌绿。 */
+.accent {
+  color: var(--accent);
 }
 
 .danger {

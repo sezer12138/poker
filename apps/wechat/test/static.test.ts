@@ -122,6 +122,42 @@ test('小程序不使用 Math.random，后端地址只在 config.js 配置', () 
   assert.equal(config.storage.token, 'poker.token');
 });
 
+test('两端调色板逐值一致：改一头必须改另一头', () => {
+  // app.wxss 与 web 的 styles.css 各自在顶部声明同一套变量，两边的注释都写着
+  // 「改色要两端一起改」。没有这条断言，那句话就只是一句注释。
+  const shared = [
+    '--bg',
+    '--surface',
+    '--surface-2',
+    '--line',
+    '--line-strong',
+    '--ink',
+    '--muted',
+    '--accent',
+    '--accent-dark',
+    '--accent-soft',
+    '--on-accent',
+    '--felt',
+    '--card-back',
+    '--danger',
+    '--ok'
+  ];
+  const readVars = (source: string) => {
+    const vars = new Map<string, string>();
+    // 变量名里可能有数字（--surface-2），字符类要带上 0-9。
+    for (const match of source.matchAll(/(--[a-z0-9-]+):\s*(#[0-9A-Fa-f]{6})/g)) {
+      vars.set(match[1]!, match[2]!.toUpperCase());
+    }
+    return vars;
+  };
+  const web = readVars(read(path.join(WECHAT_ROOT, '..', 'web', 'static', 'styles.css')));
+  const mini = readVars(read(path.join(WECHAT_ROOT, 'app.wxss')));
+  for (const name of shared) {
+    assert.ok(web.has(name), `web 样式表缺少 ${name}`);
+    assert.equal(mini.get(name), web.get(name), `${name} 两端不一致（小程序 ${mini.get(name)} / web ${web.get(name)}）`);
+  }
+});
+
 test('不使用 web-view，品牌色与中文文案齐备', () => {
   const wxmlFiles = walk(WECHAT_ROOT, '.wxml');
   assert.ok(wxmlFiles.length >= EXPECTED_PAGES.length);
@@ -129,15 +165,18 @@ test('不使用 web-view，品牌色与中文文案齐备', () => {
     assert.ok(!read(file).includes('web-view'), `${relative(file)} 使用了 web-view`);
   }
 
-  // 简约主题的调色板：暖白底、墨色文字、单一品牌绿点缀、黄铜只用于盲注标记。
+  // 简约主题的调色板：浅灰底、低饱和绿牌桌、墨色文字，全站只有一种强调色（品牌绿）。
   const appWxss = read(path.join(WECHAT_ROOT, 'app.wxss'));
-  for (const color of ['#F5F4F0', '#22252A', '#2F6A50', '#A98A4E', '#C0564F']) {
+  for (const color of ['#F4F6F5', '#243C32', '#28694F', '#E5EEE9', '#B3261E']) {
     assert.ok(appWxss.includes(color), `app.wxss 缺少主题色 ${color}`);
   }
-  // 旧的深绿主题必须彻底退出，否则会出现半新半旧的界面。
-  for (const color of ['#0B3D2E', '#F5EFDC', '#B5A642']) {
+  // 旧的深绿主题与铜色点缀必须彻底退出，否则会出现半新半旧的界面。
+  for (const color of ['#0B3D2E', '#F5EFDC', '#B5A642', '#A98A4E']) {
     assert.ok(!appWxss.includes(color), `app.wxss 仍残留旧主题色 ${color}`);
   }
+  // 铜色类名一并删掉：留一个名字叫 brass 的绿色类，后来者一定会用错。
+  assert.equal(appWxss.includes('brass'), false, 'app.wxss 仍残留 brass');
+  assert.ok(appWxss.includes('.accent'), '强调文字类改名为 .accent 后要在样式里定义');
 
   const roomWxml = read(path.join(WECHAT_ROOT, 'pages/room/room.wxml'));
   assert.ok(roomWxml.includes('随机核验披露'), '等待房间缺少核验披露说明');
@@ -151,8 +190,8 @@ test('不使用 web-view，品牌色与中文文案齐备', () => {
 test('浅色主题：导航栏配色与页面样式表都不再硬编码旧配色', () => {
   const appJson = readJson(path.join(WECHAT_ROOT, 'app.json'));
   const window = appJson.window as Record<string, unknown>;
-  assert.equal(window.backgroundColor, '#F5F4F0');
-  assert.equal(window.navigationBarBackgroundColor, '#F5F4F0');
+  assert.equal(window.backgroundColor, '#F4F6F5');
+  assert.equal(window.navigationBarBackgroundColor, '#F4F6F5');
   // 浅底必须配深字，否则导航标题在浅色背景上看不见。
   assert.equal(window.navigationBarTextStyle, 'black');
 

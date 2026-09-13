@@ -76,7 +76,7 @@ Page({
         localCount += 1;
         if (stored === round.commitment) {
           matchText = '与本地留存一致';
-          matchClass = 'brass';
+          matchClass = 'accent';
         } else {
           matchText = '与本地留存不一致';
           matchClass = 'danger';

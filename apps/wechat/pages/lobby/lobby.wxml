@@ -16,7 +16,7 @@
     </view>
     <view class="row">
       <text class="muted">登录方式</text>
-      <text class="brass">{{modeText || '—'}}</text>
+      <text class="accent">{{modeText || '—'}}</text>
     </view>
     <input class="input nick" type="nickname" placeholder="输入昵称" placeholder-class="ph" value="{{nickname}}" bindinput="onNickInput" />
     <button class="btn" bindtap="onRelogin" disabled="{{busy}}">按该昵称重新登录</button>

@@ -40,13 +40,13 @@ module.exports = {
   // 主题色（与 app.wxss 的 CSS 变量、web 端 styles.css 三处保持一致）。
   // 只作说明与配置用：小程序样式不能读 JS 常量，色值仍需写在 app.wxss 的 `page` 变量里。
   brand: {
-    bg: '#F5F4F0',
+    bg: '#F4F6F5',
     surface: '#FFFFFF',
-    ink: '#22252A',
-    muted: '#6E737B',
-    accent: '#2F6A50',
-    accentSoft: '#EAF2EE',
-    brass: '#A98A4E',
-    danger: '#C0564F'
+    ink: '#243C32',
+    muted: '#64756D',
+    accent: '#28694F',
+    accentSoft: '#F0F7F2',
+    felt: '#E5EEE9',
+    danger: '#B3261E'
   }
 };

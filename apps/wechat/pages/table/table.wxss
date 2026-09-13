@@ -16,13 +16,14 @@
   color: var(--accent);
 }
 
+/* 牌桌毡面：与 web 端 .table-surface 同色（--felt），在浅灰底上浮出一张椭圆桌。 */
 .felt {
   position: relative;
   height: 760rpx;
   margin: 8rpx 0 16rpx;
   border-radius: 50% / 42%;
   border: 2rpx solid var(--line-strong);
-  background: var(--surface);
+  background: var(--felt);
 }
 
 .center {
@@ -58,8 +59,8 @@
 
 .announce--big {
   font-size: 48rpx;
-  color: var(--brass);
-  border-color: var(--brass);
+  color: var(--accent);
+  border-color: var(--accent);
   animation-name: announce-big;
 }
 
@@ -254,14 +255,9 @@
   color: var(--danger);
 }
 
+/* 牌背纯色，与 web 端 .card--back 共用 --card-back；斜纹在 40rpx 的小牌上只会糊成一片。 */
 .mini-card.back {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--surface-2),
-    var(--surface-2) 6rpx,
-    var(--line) 6rpx,
-    var(--line) 12rpx
-  );
+  background: var(--card-back);
 }
 
 .seat-stack {
@@ -306,7 +302,7 @@
 
 .pos.sb,
 .pos.bb {
-  background: var(--brass);
+  background: var(--accent);
   color: var(--on-accent);
 }
 
@@ -416,14 +412,15 @@
   border-bottom: 1rpx solid var(--line);
 }
 
-/* 结算确认弹窗：铺满全屏，挡住牌桌，逼玩家先看一眼谁赢谁输。 */
+/* 结算确认弹窗：铺满全屏，挡住牌桌，逼玩家先看一眼谁赢谁输。
+   遮罩色与 web 端 .dialog / .tutorial-dialog::backdrop 一致。 */
 .dialog-mask {
   position: fixed;
   left: 0;
   right: 0;
   top: 0;
   bottom: 0;
-  background: rgba(20, 24, 28, 0.45);
+  background: rgba(25, 43, 34, 0.36);
   display: flex;
   align-items: center;
   justify-content: center;

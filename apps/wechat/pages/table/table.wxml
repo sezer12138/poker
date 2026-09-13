@@ -79,7 +79,7 @@
     </view>
     <view class="row" wx:for="{{awardRows}}" wx:key="seatText">
       <text class="muted">{{item.seatText}} 赢得</text>
-      <text class="brass">{{item.amountText}}</text>
+      <text class="accent">{{item.amountText}}</text>
     </view>
     <view class="row" wx:for="{{refundRows}}" wx:key="seatText">
       <text class="muted">{{item.seatText}} 退回</text>

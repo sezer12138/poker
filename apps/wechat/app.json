@@ -9,8 +9,8 @@
   ],
   "window": {
     "backgroundTextStyle": "dark",
-    "backgroundColor": "#F5F4F0",
-    "navigationBarBackgroundColor": "#F5F4F0",
+    "backgroundColor": "#F4F6F5",
+    "navigationBarBackgroundColor": "#F4F6F5",
     "navigationBarTitleText": "同桌 · 德州扑克",
     "navigationBarTextStyle": "black"
   },

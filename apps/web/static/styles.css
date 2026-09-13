@@ -16,6 +16,8 @@
   --on-accent: #FFFFFF;
   /* 牌桌毡面：比 --surface-2 稍深一点，让椭圆桌面从浅灰底上浮出来。 */
   --felt: #E5EEE9;
+  /* 牌背：低饱和的深绿，和毡面拉开层次又不抢牌面。与小程序 --card-back 同值。 */
+  --card-back: #678778;
   --danger: #B3261E;
   --danger-soft: #B54138;
   --ok: #287455;
@@ -401,7 +403,7 @@ input[type='number'] {
 }
 
 .card--back {
-  background: #678778;
+  background: var(--card-back);
   border-color: var(--line-strong);
 }
 
