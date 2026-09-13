@@ -102,4 +102,23 @@ describe('入口进程', () => {
       await rm(dataDir, {recursive: true, force: true});
     }
   });
+
+  it('生产模式被误设了节奏类变量时会明说忽略，而不是悄悄生效', async () => {
+    const dataDir = await mkdtemp(path.join(tmpdir(), 'poker-main-'));
+    const proc = start({
+      POKER_MODE: 'production',
+      POKER_STORAGE: 'file',
+      POKER_STORAGE_KEY: 'ab'.repeat(32),
+      POKER_DATA_DIR: dataDir,
+      POKER_SETTLE_MS: '40',
+      POKER_BOT_THINK_MS: '10',
+    });
+    try {
+      await proc.waitForText('已启动');
+      assert.match(proc.stderr, /生产模式忽略 POKER_SETTLE_MS \/ POKER_BOT_THINK_MS/);
+    } finally {
+      proc.child.kill('SIGKILL');
+      await rm(dataDir, {recursive: true, force: true});
+    }
+  });
 });

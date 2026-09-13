@@ -18,6 +18,7 @@ export interface CoordinatorOptions {
   now?: () => number;
   random?: () => number;
   botThinkMs?: number;
+  settleDelayMs?: number;
   log?: (message: string, error?: unknown) => void;
 }
 
@@ -58,6 +59,7 @@ export class Coordinator {
   private now: () => number;
   private random: () => number;
   private botThinkMs: number;
+  private settleDelayMs: number | undefined;
   private log: (message: string, error?: unknown) => void;
 
   constructor(options: CoordinatorOptions) {
@@ -67,6 +69,7 @@ export class Coordinator {
     this.now = options.now ?? Date.now;
     this.random = options.random ?? randomFloat;
     this.botThinkMs = options.botThinkMs ?? BOT_THINK_MS;
+    this.settleDelayMs = options.settleDelayMs;
     this.log = options.log ?? ((message, error) => console.error(`[rooms] ${message}`, error ?? ''));
   }
 
@@ -416,7 +419,7 @@ export class Coordinator {
           room.deadlines.action = now + ACTION_TIMEOUT_MS;
           changed = true;
         } else if (stage === 'settled') {
-          room.deadlines.nextHand = now + SETTLE_DELAY_MS;
+          room.deadlines.nextHand = now + (this.settleDelayMs ?? SETTLE_DELAY_MS);
           changed = true;
         }
         if (changed) {
@@ -451,6 +454,7 @@ export class Coordinator {
       online: userId => this.hub.online(userId),
       random: this.random,
       log: this.log,
+      settleDelayMs: this.settleDelayMs,
     };
   }
 

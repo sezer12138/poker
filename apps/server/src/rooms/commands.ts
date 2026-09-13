@@ -20,6 +20,8 @@ export interface CommandContext {
   /** Injected randomness for bot decisions so tests stay deterministic. */
   random?: () => number;
   log?: (message: string, error?: unknown) => void;
+  /** 结算展示时长；只由开发模式覆盖（冒烟脚本要压缩一整场），默认 4 秒。 */
+  settleDelayMs?: number;
 }
 
 export type ParsedCommand =
@@ -312,7 +314,7 @@ function settleFlow(room: PersistedRoom, ctx: CommandContext): void {
     room.deadlines.nextHand = null;
     pushEvent(room, 'finish', `比赛结束，${memberName(room, tournament.winner)} 获胜`);
   } else {
-    room.deadlines.nextHand = ctx.now + SETTLE_DELAY_MS;
+    room.deadlines.nextHand = ctx.now + (ctx.settleDelayMs ?? SETTLE_DELAY_MS);
   }
   trimEvents(room);
   room.lastActivityAt = ctx.now;

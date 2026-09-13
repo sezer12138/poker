@@ -38,6 +38,12 @@ export interface ServerConfig {
   sessionTtlMs: number;
   /** WebSocket 升级时允许的 Origin；空数组表示不校验（浏览器之外的客户端不会带）。 */
   allowedOrigins: string[];
+  /**
+   * 结算展示时长与机器人思考时长。**只在开发模式下可改**（见 loadConfig），
+   * 冒烟脚本靠它们把「打到分出胜负」压缩到几秒。生产模式恒为默认值。
+   */
+  settleDelayMs: number;
+  botThinkMs: number;
 }
 
 function integer(raw: string | undefined, fallback: number, name: string): number {
@@ -68,6 +74,10 @@ export function loadConfig(env: Record<string, string | undefined>): ServerConfi
       .split(',')
       .map(value => value.trim())
       .filter(value => value !== ''),
+    // 时长类开关只在开发模式下生效：生产环境一旦被误设，会让对局速度快到玩家来不及反应，
+    // 所以这里直接忽略（不报错也不采信），production 下这两个值恒为默认。
+    settleDelayMs: mode === 'development' ? integer(env['POKER_SETTLE_MS'], SETTLE_DELAY_MS, 'POKER_SETTLE_MS') : SETTLE_DELAY_MS,
+    botThinkMs: mode === 'development' ? integer(env['POKER_BOT_THINK_MS'], BOT_THINK_MS, 'POKER_BOT_THINK_MS') : BOT_THINK_MS,
   };
 }
 

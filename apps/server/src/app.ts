@@ -29,6 +29,7 @@ export interface AppOptions {
   timers?: TimerApi;
   random?: () => number;
   botThinkMs?: number;
+  settleDelayMs?: number;
   log?: (message: string, error?: unknown) => void;
   webRoot?: string;
   heartbeatMs?: number | null;
@@ -72,7 +73,8 @@ export async function createApp(options: AppOptions): Promise<App> {
     timers,
     now,
     random: options.random,
-    botThinkMs: options.botThinkMs,
+    botThinkMs: options.botThinkMs ?? config.botThinkMs,
+    settleDelayMs: options.settleDelayMs ?? config.settleDelayMs,
     log,
   });
   await coordinator.restore();

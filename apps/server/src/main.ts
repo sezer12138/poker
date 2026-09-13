@@ -19,6 +19,10 @@ async function main(): Promise<void> {
 
   console.log(`[server] 同桌 · 德州扑克 已启动 http://${host}:${port}`);
   console.log(`[server] 运行模式 ${config.mode}，存储 ${config.storage}`);
+  if (config.mode === 'production' && (process.env['POKER_SETTLE_MS'] || process.env['POKER_BOT_THINK_MS'])) {
+    // 静默忽略会让人以为改动生效了；说清楚是按设计忽略。
+    console.error('[server] 生产模式忽略 POKER_SETTLE_MS / POKER_BOT_THINK_MS：节奏类时长只允许在开发模式下调整');
+  }
   if (config.wechat === null) {
     const hint = '未配置微信登录：需要 POKER_WECHAT_APPID / POKER_WECHAT_SECRET';
     if (config.mode === 'production') {
