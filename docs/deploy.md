@@ -61,7 +61,7 @@ curl -s http://127.0.0.1:8787/api/health
 | `POKER_WECHAT_APPID` / `POKER_WECHAT_SECRET` | — | 微信登录凭据 |
 | `POKER_SESSION_TTL_DAYS` | `7` | 登录态有效期 |
 | `POKER_ALLOWED_ORIGINS` | 空（不校验） | WebSocket 的 `Origin` 白名单，逗号分隔；**公网部署建议填成你的域名** |
-| `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` | `8000` / `2500` | 自动化专用，**生产模式一律忽略**并打印一行提示 |
+| `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` | `600000` / `2500` | 自动化专用，**生产模式一律忽略**并打印一行提示 |
 
 `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` 是给 `npm run smoke` 这类自动化用的（把结算展示与
 机器人思考压到几十毫秒，一场牌局几秒打完）。它们只在 `POKER_MODE=development` 下生效：

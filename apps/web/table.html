@@ -5,15 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#F4F6F5" />
     <title>牌桌 · 同桌德州扑克</title>
-    <link rel="stylesheet" href="static/styles.css?v=20260914" />
+    <link rel="stylesheet" href="static/styles.css?v=20260919-7" />
   </head>
-  <body>
+  <body class="table-page">
     <header class="topbar">
       <a class="brand" href="index.html">
         <span class="brand__mark">♠</span>
         <span class="brand__name" id="room-title">牌桌</span>
       </a>
       <nav class="topbar__nav">
+        <button id="voice-btn" class="btn btn--ghost btn--small" type="button" aria-pressed="false">语音：关</button>
+        <button id="sfx-btn" class="btn btn--ghost btn--small" type="button" aria-pressed="false">音效：关</button>
         <button id="music-btn" class="btn btn--ghost btn--small" type="button">音乐：关</button>
         <button class="btn btn--ghost btn--small" type="button" data-tutorial>新手教程</button>
         <a href="rules.html">规则</a>
@@ -48,7 +50,7 @@
           </div>
           <div id="next-hand" class="result__next" hidden></div>
         </div>
-        <div id="announce" class="announce" hidden></div>
+        <div id="announce" class="announce" role="status" aria-live="polite" hidden></div>
       </section>
 
       <section id="result" class="result" hidden></section>
@@ -99,7 +101,7 @@
       <div id="result-dialog-card" class="dialog__card" role="dialog" aria-modal="true" aria-labelledby="result-dialog-title"></div>
     </div>
 
-    <script type="module" src="static/js/tutorial.js?v=20260914"></script>
-    <script type="module" src="static/js/table.js?v=20260914"></script>
+    <script type="module" src="static/js/tutorial.js?v=20260919-7"></script>
+    <script type="module" src="static/js/table.js?v=20260919-7"></script>
   </body>
 </html>

@@ -12,7 +12,11 @@
   <view class="notice" wx:if="{{fairnessTip}}">{{fairnessTip}}</view>
   <view class="error" wx:if="{{error}}">{{error}}</view>
 
-  <view class="felt">
+  <view class="sound-controls">
+    <button size="mini" bindtap="onFeedback" data-channel="voice">{{voiceText}}</button>
+    <button size="mini" bindtap="onFeedback" data-channel="sfx">{{sfxText}}</button>
+  </view>
+  <view class="felt {{motionClass}}">
     <view class="center">
       <view class="pot">
         <text class="pot-label">底池</text>

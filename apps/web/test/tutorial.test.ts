@@ -109,10 +109,10 @@ test('教程六步覆盖从进桌到结算，每步都有正文与提示', () =>
   }
 });
 
-test('教程口径与服务器一致：90 秒行动、8 秒兜底、虚拟筹码不可提现', () => {
+test('教程口径与服务器一致：5 分钟行动、10 分钟兜底、虚拟筹码不可提现', () => {
   const text = STEPS.map((step) => [step.title, ...step.body, step.tip].join('。')).join('。');
-  assert.ok(text.includes('90 秒'), '要写明行动时限');
-  assert.ok(text.includes('8 秒'), '要写明结算兜底倒计时——不然玩家以为必须一直点确认');
+  assert.ok(text.includes('5 分钟'), '要写明行动时限');
+  assert.ok(text.includes('10 分钟'), '要写明结算兜底倒计时——不然玩家以为必须一直点确认');
   assert.ok(text.includes('确认'), '要讲清每手结束真人点确认');
   assert.equal(text.includes('30 秒'), false, '不能残留旧的 30 秒时限');
   assert.ok(text.includes('免费虚拟筹码') && text.includes('提现'), '要保留虚拟筹码不可兑换的声明');

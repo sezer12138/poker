@@ -1290,3 +1290,56 @@ input[type='number'] {
     height: 43px;
   }
 }
+
+/* 牌桌体验：让行动者、筹码与主操作建立清楚的视觉层次。 */
+.table-page .topbar__nav { flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.table-page .table-surface {
+  background: radial-gradient(ellipse at 50% 40%, #f0f7f2 0%, var(--felt) 72%);
+  border: 8px solid #d3e2d9;
+  box-shadow: inset 0 0 0 1px #b6ccbf, inset 0 0 40px #28694f0c, 0 16px 40px #243c3212;
+}
+.table-page .seat {
+  border-radius: 14px;
+  box-shadow: 0 5px 16px #243c3210;
+  transition: border-color .2s, box-shadow .2s, opacity .2s;
+}
+.table-page .seat.is-actor { box-shadow: 0 0 0 4px #28694f20, 0 6px 20px #28694f24; }
+.table-page .seat__name { font-weight: 750; }
+.table-page .seat__stack { font-variant-numeric: tabular-nums; }
+.table-page .seat__bet {
+  color: var(--accent); background: var(--accent-soft); border-radius: 999px;
+  padding: 3px 8px; font-weight: 650;
+}
+.table-page .pot { background: #ffffffd9; padding: 6px 16px; box-shadow: 0 3px 12px #243c3208; }
+.table-page .pot__amount { font-size: 24px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.table-page .card { box-shadow: 0 3px 7px #243c3214; }
+.table-page .card--back:not(.card--empty) { background: repeating-linear-gradient(45deg, #bdd1c4, #bdd1c4 3px, #d5e3da 3px, #d5e3da 7px); }
+.table-page .actions { border-radius: 20px; box-shadow: 0 8px 28px #243c3210; }
+.table-page .actions__row .btn { min-height: 46px; transition: transform .12s, background .15s; }
+.table-page .actions__row .btn:active { transform: translateY(2px) scale(.98); }
+.table-page button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.table-page button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+@media (max-width: 600px) {
+  .table-page .topbar { align-items: flex-start; gap: 10px; }
+  .table-page .topbar__nav { max-width: 72%; font-size: 12px; }
+  .table-page .topbar__nav .btn { padding: 5px 8px; }
+  .table-page .table-surface { border-width: 4px; }
+  .table-page .pot { padding: 3px 9px; }
+  .table-page .pot__amount { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .table-page *, .table-page *::before, .table-page *::after { animation: none !important; transition: none !important; }
+}
+
+.table-page .table-surface { min-height: 560px; margin-bottom: 48px; }
+.table-page .table__center { top: 45%; }
+.table-page .actions { position: relative; }
+@media (max-width: 600px) {
+  .table-page .table-surface { min-height: 610px; margin-left: 22px; margin-right: 22px; }
+  .table-page .seat { width: 86px; font-size: 10px; padding: 4px; }
+  .table-page .seat__bet { padding: 2px 3px; }
+  .table-page .table__center { width: 64%; }
+  .table-page .board .card--small { width: 28px; height: 42px; }
+}
+
+.table-page .table-timer { max-width: 100%; }

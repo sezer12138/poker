@@ -33,7 +33,7 @@ async function bootServer(): Promise<TestServer> {
 }
 
 describe('重启恢复', () => {
-  it('行动中的牌局：底牌与牌序不变，窗口重新计时 90 秒', async () => {
+  it('行动中的牌局：底牌与牌序不变，窗口重新计时 5 分钟', async () => {
     let server = await bootServer();
     try {
       const {roomId, players} = await readyRoom(server);
@@ -64,7 +64,7 @@ describe('重启恢复', () => {
       );
       assert.equal(after.fairness.stage, 'playing');
       assert.match(after.notice, /重启/, '重启要给玩家一句中文提示');
-      assert.equal(after.deadline! - after.serverTime, 90000, '停机时间不计入玩家的行动时限');
+      assert.equal(after.deadline! - after.serverTime, 300000, '停机时间不计入玩家的行动时限');
 
       const restored = server.coordinator.get(roomId)!;
       assert.deepEqual(restored.fairnessStage!.deck, deck, '牌堆必须原样保留');
@@ -72,7 +72,7 @@ describe('重启恢复', () => {
       assert.deepEqual(reconstructDeck(restored.fairnessStage!.round), deck, '重启后仍能复算牌序');
 
       // The re-armed timer really runs: 90s later the silent player is timed out.
-      await server.clock.advance(90000);
+      await server.clock.advance(300000);
       await waitFor(() => {
         const room = server.coordinator.get(roomId)!;
         return room.tournament!.hand!.street === 'settled' || room.tournament!.hand!.actor !== after.hand.actor;
@@ -119,7 +119,7 @@ describe('重启恢复', () => {
     }
   });
 
-  it('结算展示阶段：核验记录不丢，8 秒后照常开下一手', async () => {
+  it('结算展示阶段：核验记录不丢，10 分钟后照常开下一手', async () => {
     let server = await bootServer();
     try {
       const {roomId, players} = await readyRoom(server);
@@ -136,11 +136,11 @@ describe('重启恢复', () => {
 
       const after = (await server.view(players[0]!, roomId));
       assert.equal(after.fairness.stage, 'settled');
-      assert.equal(after.nextHandAt! - after.serverTime, 8000);
+      assert.equal(after.nextHandAt! - after.serverTime, 600000);
       assert.match(after.notice, /重启/);
       assert.deepEqual(after.fairness.history, before.fairness.history, '上一手的核验数据必须保留');
 
-      await server.clock.advance(7999);
+      await server.clock.advance(599999);
       await drain();
       assert.equal((await server.view(players[0]!, roomId)).fairness.handNo, 1);
 

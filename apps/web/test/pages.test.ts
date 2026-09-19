@@ -171,6 +171,7 @@ test('页面不引用未列出的模块，模块之间只使用相对路径', ()
     'format',
     'util',
     'music',
+    'feedback',
     'announce',
     'lobby',
     'room',
@@ -184,7 +185,7 @@ test('页面不引用未列出的模块，模块之间只使用相对路径', ()
     for (const match of source.matchAll(/from '([^']+)'/g)) {
       const target = match[1];
       assert.ok(target.startsWith('./'), `${name}.js 只能相对引用同目录模块，发现 ${target}`);
-      const file = target.slice(2);
+      const file = target.slice(2).split('?')[0]!;
       assert.ok(modules.includes(file.replace(/\.js$/, '')), `${name}.js 引用了未列出的模块 ${target}`);
     }
   }

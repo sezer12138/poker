@@ -67,6 +67,13 @@ describe('静态资源服务', () => {
     assert.equal(script.headers['cache-control'], 'public, max-age=300');
   });
 
+  it('内置行动语音可以通过同源 HTTP 播放', async () => {
+    const clip = await rawRequest(server.port, '/static/audio/call.mp3', 'HEAD');
+    assert.equal(clip.status, 200);
+    assert.equal(clip.headers['content-type'], 'audio/mpeg');
+    assert.ok(Number(clip.headers['content-length']) > 1000);
+  });
+
   it('HEAD 只给响应头，查询串不影响命中', async () => {
     const head = await rawRequest(server.port, '/index.html', 'HEAD');
     assert.equal(head.status, 200);
