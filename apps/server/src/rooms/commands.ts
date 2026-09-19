@@ -11,7 +11,7 @@ import {ACTION_TIMEOUT_MS, CONTRIBUTE_WINDOW_MS, MAX_MEMBERS, SETTLE_DELAY_MS} f
 import {AppError} from '../errors.ts';
 import {cardsText} from '../format.ts';
 import {uuid} from '../ids.ts';
-import type {DealtCards, Member, PersistedRoom} from '../storage/storage.ts';
+import type {DealtCards, EventAction, Member, PersistedRoom} from '../storage/storage.ts';
 
 export interface CommandContext {
   now: number;
@@ -20,7 +20,7 @@ export interface CommandContext {
   /** Injected randomness for bot decisions so tests stay deterministic. */
   random?: () => number;
   log?: (message: string, error?: unknown) => void;
-  /** 结算展示时长；只由开发模式覆盖（冒烟脚本要压缩一整场），默认 4 秒。 */
+  /** 结算展示时长；只由开发模式覆盖（冒烟脚本要压缩一整场），默认 8 秒。 */
   settleDelayMs?: number;
 }
 
@@ -31,8 +31,14 @@ export type ParsedCommand =
   | {type: 'removeBot'; seat: number}
   | {type: 'action'; action: Action}
   | {type: 'contribute'; nonce: string; handNo: number}
+  | {type: 'settleAck'; handNo: number}
   | {type: 'restart'}
   | {type: 'leave'};
+
+/** 集齐即推进的命令：与 contribute 一样豁免 expectedVersion（见 coordinator.command）。 */
+export function skipsVersionCheck(command: ParsedCommand): boolean {
+  return command.type === 'contribute' || command.type === 'settleAck';
+}
 
 export type TimerSpec =
   | {kind: 'contribute'; handNo: number}
@@ -77,6 +83,13 @@ export function parseCommand(raw: Record<string, unknown>): ParsedCommand {
         throw new AppError('INVALID_INPUT', '手号非法');
       }
       return {type: 'contribute', nonce, handNo: handNo as number};
+    }
+    case 'settleAck': {
+      const handNo = raw['handNo'];
+      if (!Number.isSafeInteger(handNo) || (handNo as number) <= 0) {
+        throw new AppError('INVALID_INPUT', '手号非法');
+      }
+      return {type: 'settleAck', handNo: handNo as number};
     }
     case 'restart':
       return {type: 'restart'};
@@ -138,9 +151,18 @@ function memberName(room: PersistedRoom, seat: SeatId): string {
   return room.members.find(member => member.seat === seat)?.name ?? `座位 ${seat}`;
 }
 
-function pushEvent(room: PersistedRoom, type: string, text: string): void {
+/**
+ * 事件流是客户端播报横幅的数据源。除固定的 seq/handNo/type/text 外，动作事件还带
+ * 「做了什么、多少钱」的结构化字段，客户端据此决定语气——从 text 里正则抠动作太脆。
+ */
+function pushEvent(
+  room: PersistedRoom,
+  type: string,
+  text: string,
+  detail: {action?: EventAction; amount?: number} = {},
+): void {
   room.seq += 1;
-  room.events.push({seq: room.seq, handNo: room.fairnessStage?.handNo ?? 0, type, text});
+  room.events.push({seq: room.seq, handNo: room.fairnessStage?.handNo ?? 0, type, text, ...detail});
 }
 
 /** Cap the log so a long match cannot grow the snapshot without bound. */
@@ -223,6 +245,10 @@ export function beginHandFlow(room: PersistedRoom, ctx: CommandContext): void {
     deck: null,
     dealt: null,
     button: null,
+    // 新的 stage 对象，上一手的确认自然作废（确认门只认当前这一手）。
+    settleAcks: [],
+    // 这里还不知道首手筹码（首手时 tournament 还没建），发牌前由 applyDeal 填。
+    startStacks: {},
   };
   room.deadlines.action = null;
   room.deadlines.actionSeat = null;
@@ -264,6 +290,9 @@ export function applyDeal(room: PersistedRoom, ctx: CommandContext): void {
     room.tournament === null
       ? createTournament(stage.seats, buttonFromDeck(deck, stage.seats))
       : room.tournament;
+  // 记下各座位带进本手的筹码：引擎结算会把 committed 清零，之后只有这份快照能算出
+  // 「这手谁赢了多少、谁输了多少」（见 storage.ts 的 startStacks）。
+  stage.startStacks = Object.fromEntries(tournament.entries.map(entry => [String(entry.seat), entry.stack]));
   const next = nextHand(tournament, deck);
   const hand = next.hand!;
   if (hand.id !== stage.handNo) throw new AppError('INTERNAL', '牌局手号与公平流程不一致');
@@ -314,6 +343,7 @@ function settleFlow(room: PersistedRoom, ctx: CommandContext): void {
     room.deadlines.nextHand = null;
     pushEvent(room, 'finish', `比赛结束，${memberName(room, tournament.winner)} 获胜`);
   } else {
+    // 兜底窗口：真人全部点确认会提前开下一手（见 settleAck），这个时刻是没人点时的上限。
     room.deadlines.nextHand = ctx.now + (ctx.settleDelayMs ?? SETTLE_DELAY_MS);
   }
   trimEvents(room);
@@ -340,11 +370,21 @@ export function applySeatAction(
     if (event.type === 'action') {
       const player = after.players.find(item => item.seat === event.seat)!;
       const previous = before.players.find(item => item.seat === event.seat)?.roundBet ?? 0;
+      const paid = player.roundBet - previous;
       const text =
         source === 'timeout'
           ? `${memberName(room, event.seat)} 超时，自动${event.action.type === 'fold' ? '弃牌' : '过牌'}`
-          : `${memberName(room, event.seat)} ${actionText(event.action, player.roundBet - previous, player.roundBet)}`;
-      pushEvent(room, 'action', text);
+          : `${memberName(room, event.seat)} ${actionText(event.action, paid, player.roundBet)}`;
+      // 金额口径见 PublicEvent.amount：加注报累计目标，全押与跟注报实际投入。
+      const amount =
+        event.action.type === 'raiseTo'
+          ? event.action.amount
+          : event.action.type === 'allIn'
+            ? player.roundBet
+            : event.action.type === 'call'
+              ? paid
+              : undefined;
+      pushEvent(room, 'action', text, {action: event.action.type, amount});
     } else if (event.type === 'street') {
       pushEvent(room, 'street', streetText(after));
     }
@@ -381,12 +421,18 @@ export function pauseMatch(room: PersistedRoom, ctx: CommandContext, error: unkn
 // Commands
 // ---------------------------------------------------------------------------
 
+/**
+ * Applies a command in place. Returns false when the command was legal but had
+ * nothing to do（目前只有迟到的结算确认）——调用方据此跳过落盘与版本号自增，
+ * 否则一条无害的重复确认也会让别的客户端白白吃一次 VERSION_CONFLICT。
+ * 与 applyTimer 的「陈旧定时器返回 false」是同一条约定。
+ */
 export function applyCommand(
   room: PersistedRoom,
   actorId: string,
   command: ParsedCommand,
   ctx: CommandContext,
-): void {
+): boolean {
   switch (command.type) {
     case 'ready': {
       requireWaiting(room);
@@ -466,6 +512,24 @@ export function applyCommand(
       }
       break;
     }
+    case 'settleAck': {
+      // 结算确认：只认「这一手已结算、比赛仍在进行」。其余情况（确认来晚了落到下一手、
+      // 比赛已结束、机器人或已淘汰的座位）一律无副作用返回——双击、断线重发、
+      // 旧标签页的迟到确认都不该给玩家弹一个错误横幅，也不该让房间白写一次盘。
+      const member = requireMember(room, actorId);
+      const stage = room.fairnessStage;
+      if (room.status !== 'playing' || stage === null || stage.stage !== 'settled') return false;
+      if (stage.handNo !== command.handNo) return false;
+      if (member.bot || !stage.seats.includes(member.seat)) return false;
+      if (stage.settleAcks.includes(member.seat)) return false; // 重复确认：幂等的空操作
+      stage.settleAcks.push(member.seat);
+      room.lastActivityAt = ctx.now;
+      // 真人都确认了就立刻开下一手；否则等 deadlines.nextHand 的兜底定时器。
+      if (humanSeatsInHand(room, stage.seats).every(seat => stage.settleAcks.includes(seat))) {
+        beginHandFlow(room, ctx);
+      }
+      break;
+    }
     case 'restart': {
       requireHost(room, actorId);
       if (room.status !== 'finished') throw new AppError('ROOM_LOCKED', '比赛尚未结束');
@@ -492,6 +556,7 @@ export function applyCommand(
       break;
     }
   }
+  return true;
 }
 
 // ---------------------------------------------------------------------------

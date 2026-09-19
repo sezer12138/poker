@@ -61,7 +61,7 @@ curl -s http://127.0.0.1:8787/api/health
 | `POKER_WECHAT_APPID` / `POKER_WECHAT_SECRET` | — | 微信登录凭据 |
 | `POKER_SESSION_TTL_DAYS` | `7` | 登录态有效期 |
 | `POKER_ALLOWED_ORIGINS` | 空（不校验） | WebSocket 的 `Origin` 白名单，逗号分隔；**公网部署建议填成你的域名** |
-| `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` | `4000` / `1000` | 自动化专用，**生产模式一律忽略**并打印一行提示 |
+| `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` | `8000` / `2500` | 自动化专用，**生产模式一律忽略**并打印一行提示 |
 
 `POKER_SETTLE_MS` / `POKER_BOT_THINK_MS` 是给 `npm run smoke` 这类自动化用的（把结算展示与
 机器人思考压到几十毫秒，一场牌局几秒打完）。它们只在 `POKER_MODE=development` 下生效：
@@ -126,7 +126,7 @@ sudo nginx -t && sudo systemctl reload nginx
 * **容量**：单机单进程即可（房间在内存里、命令串行入队）；要横向扩容需要多进程共用
   Postgres，目前只在单进程下验证过。
 * **上线自检**：`npm run smoke` 会真起一个服务端进程，依次走登录 → 建房 → 开赛 → 贡献 →
-  发牌 → 打到结束 → 赛后核验 → WebSocket 订阅/顶号/关闭码，共 40 项检查。
+  发牌 → 打到结束 → 赛后核验 → WebSocket 订阅/顶号/关闭码，共 42 项检查。
   在目标机器上跑一遍能覆盖绝大多数接线错误（静态页、存储、定时器、WS 握手）。
 
 ## 六、上线前必须自己确认的事（未验证项）

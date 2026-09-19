@@ -9,12 +9,12 @@
 .hex {
   display: block;
   font-size: 20rpx;
-  color: rgba(245, 239, 220, 0.85);
+  color: var(--muted);
   word-break: break-all;
 }
 
 .event {
   font-size: 22rpx;
-  color: rgba(245, 239, 220, 0.78);
+  color: var(--ink);
   padding: 6rpx 0;
 }

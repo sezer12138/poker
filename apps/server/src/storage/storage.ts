@@ -30,6 +30,18 @@ export interface FairnessStage {
   dealt: DealtCards | null;
   /** Button seat of this hand, needed to replay the deal order in the audit. */
   button: number | null;
+  /**
+   * Seats that confirmed the result of this (already settled) hand. Lives on the stage
+   * rather than on the deadlines bag because beginHandFlow replaces the whole stage
+   * object: the confirmations of the previous hand cannot leak into the next one.
+   */
+  settleAcks: number[];
+  /**
+   * 各座位带进本手的筹码（座位号 → 筹码），发牌前记下。引擎在结算时会把 committed 清零，
+   * 牌局视图里再也看不出谁在这手投入了多少，所以结算弹窗要显示的「赢/输多少」只能靠
+   * 这份快照与结算后的筹码做差（筹码守恒由引擎不变量保证）。
+   */
+  startStacks: Record<string, number>;
 }
 
 export interface FairnessRecord {
@@ -40,11 +52,20 @@ export interface FairnessRecord {
   button: number | null;
 }
 
+export type EventAction = 'fold' | 'check' | 'call' | 'allIn' | 'raiseTo';
+
 export interface PublicEvent {
   seq: number;
   handNo: number;
   type: string;
   text: string;
+  /** 只有 type:'action' 的事件带这个字段；服务端升级前落盘的老事件没有（undefined）。 */
+  action?: EventAction;
+  /**
+   * 与 action 配套的金额口径：raiseTo 是加注到的本轮累计目标（不是追加量），
+   * allIn 是全押后的本轮投入，call 是本次跟注额；弃牌、过牌与超时没有金额。
+   */
+  amount?: number;
 }
 
 export interface Deadlines {
@@ -111,6 +132,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Rejects a snapshot that is not shaped like a room before it can reach the
  * coordinator. A corrupt file must never take the server down.
+ *
+ * 除了校验，它还把后加字段补齐（老快照里没有 `settleAcks`）——缺一个数组字段
+ * 就丢掉整间房太重，而留 `undefined` 又会让结算确认门在读取时炸掉。
  */
 export function assertPersistedRoom(value: unknown): PersistedRoom {
   if (!isRecord(value)) throw new Error('房间快照必须是对象');
@@ -126,6 +150,15 @@ export function assertPersistedRoom(value: unknown): PersistedRoom {
   if (!Array.isArray(value['idempotency'])) throw new Error('幂等记录列表非法');
   if (!isRecord(value['deadlines'])) throw new Error('截止时间非法');
   if (!Number.isSafeInteger(value['seq'])) throw new Error('事件序号非法');
+  const stage = value['fairnessStage'];
+  if (isRecord(stage) && !Array.isArray(stage['settleAcks'])) {
+    // 结算确认门是后加的：老快照没有这个字段，补空数组即可（还未结算就等于没人确认）。
+    stage['settleAcks'] = [];
+  }
+  if (isRecord(stage) && !isRecord(stage['startStacks'])) {
+    // 同样后加的：没有快照就算不出本手输赢金额，补空对象让结算弹窗退化成只显示赢家。
+    stage['startStacks'] = {};
+  }
   return value as unknown as PersistedRoom;
 }
 

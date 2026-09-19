@@ -3,17 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0B3D2E" />
+    <meta name="theme-color" content="#F4F6F5" />
     <title>同桌 · 德州扑克</title>
-    <link rel="stylesheet" href="static/styles.css" />
+    <link rel="stylesheet" href="static/styles.css?v=20260914" />
   </head>
-  <body>
+  <!-- data-tutorial-auto：第一次进大厅自动弹出新手教程，看过后本地记住不再打扰。 -->
+  <body data-tutorial-auto="true">
     <header class="topbar">
       <a class="brand" href="index.html">
         <span class="brand__mark">♠</span>
         <span class="brand__name">同桌 · 德州扑克</span>
       </a>
       <nav class="topbar__nav">
+        <button class="btn btn--ghost btn--small" type="button" data-tutorial>新手教程</button>
         <a href="rules.html">规则</a>
       </nav>
     </header>
@@ -84,16 +86,19 @@
         <h2>开始之前</h2>
         <ul>
           <li>每位参赛者起始 1,000 免费虚拟筹码，盲注 5/10 起，每 10 手升一级。</li>
-          <li>每次行动 30 秒，超时能过牌则过牌，否则弃牌。</li>
+          <li>每次行动 90 秒，超时能过牌则过牌，否则弃牌。</li>
+          <li>每手结束弹出结算窗，真人点确认后开下一手，没人点则倒计时结束自动继续。</li>
           <li>真人需在等待房间准备；准备即表示接受“比赛结束后本桌成员可核验完整历史牌序”。</li>
           <li>本产品不含任何充值、提现或实物兑换。</li>
         </ul>
         <div class="row">
+          <button class="btn btn--ghost" type="button" data-tutorial>新手教程</button>
           <a class="btn btn--ghost" href="rules.html">查看完整规则</a>
         </div>
       </section>
     </main>
 
-    <script type="module" src="static/js/lobby.js"></script>
+    <script type="module" src="static/js/tutorial.js?v=20260914"></script>
+    <script type="module" src="static/js/lobby.js?v=20260914"></script>
   </body>
 </html>

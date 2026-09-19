@@ -1,0 +1,27 @@
+<view class="page tutorial">
+  <view class="card">
+    <view class="card-title">新手教程</view>
+    <view class="muted">从进大厅到打完一整场，跟着做一遍就会了。每一步下面的提示是新手最容易踩的坑。</view>
+  </view>
+
+  <view class="card" wx:for="{{steps}}" wx:key="title">
+    <view class="step-head">
+      <view class="step-num">{{index + 1}}</view>
+      <view class="step-title">{{item.title}}</view>
+    </view>
+    <view class="rule-item" wx:for="{{item.body}}" wx:for-item="line" wx:key="*this">{{line}}</view>
+    <view class="tip">提示：{{item.tip}}</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">常见问题</view>
+    <view class="faq" wx:for="{{faq}}" wx:key="question">
+      <view class="faq-q">{{item.question}}</view>
+      <view class="muted">{{item.answer}}</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <button class="btn" bindtap="onRules">完整规则说明</button>
+  </view>
+</view>

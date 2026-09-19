@@ -1,9 +1,9 @@
-import {ACTION_TIMEOUT_MS, BOT_THINK_MS, CONTRIBUTE_WINDOW_MS, IDEMPOTENCY_CAP, IDEMPOTENCY_MAX_BYTES, MAX_MEMBERS, ROOM_IDLE_MS, SETTLE_DELAY_MS} from '../config.ts';
+import {ACTION_TIMEOUT_MS, BOT_JITTER_MS, BOT_THINK_MS, CONTRIBUTE_WINDOW_MS, IDEMPOTENCY_CAP, IDEMPOTENCY_MAX_BYTES, MAX_MEMBERS, ROOM_IDLE_MS, SETTLE_DELAY_MS} from '../config.ts';
 import {AppError, toAppError} from '../errors.ts';
 import {randomFloat, randomHex, roomCode, uuid} from '../ids.ts';
 import type {PersistedRoom, Storage} from '../storage/storage.ts';
 import {applyBotAction} from './bots.ts';
-import {applyCommand, applyDeal, applyTimer, parseCommand, pauseMatch} from './commands.ts';
+import {applyCommand, applyDeal, applyTimer, parseCommand, pauseMatch, skipsVersionCheck} from './commands.ts';
 import type {CommandContext, TimerSpec} from './commands.ts';
 import type {Connection, Hub} from './hub.ts';
 import {roomView} from './roomview.ts';
@@ -191,7 +191,9 @@ export class Coordinator {
       throw new AppError('FORBIDDEN', '你不是该房间成员');
     }
     const expected = body['expectedVersion'];
-    if (command.type !== 'contribute' && expected !== undefined) {
+    // 贡献与结算确认是「集齐就推进」的命令：多人几乎同时提交时，后到者拿到的版本
+    // 必然是旧的，卡版本只会让最后一个人反复重试。它们的正确性由手号与幂等保证。
+    if (!skipsVersionCheck(command) && expected !== undefined) {
       if (!Number.isSafeInteger(expected)) throw new AppError('INVALID_INPUT', 'expectedVersion 非法');
     }
 
@@ -203,17 +205,22 @@ export class Coordinator {
       // 会让拿到别人 requestId 的人收到别人的牌。没有 userId 的旧记录一律不回放。
       const replay = room.idempotency.find(([id, record]) => id === requestId && record.userId === userId);
       if (replay) return JSON.parse(replay[1].viewJson);
-      if (command.type !== 'contribute' && expected !== undefined && expected !== room.version) {
+      if (!skipsVersionCheck(command) && expected !== undefined && expected !== room.version) {
         throw new AppError('VERSION_CONFLICT');
       }
 
       const draft = structuredClone(room);
       draft.version = room.version + 1;
       const ctx = this.context();
+      let applied: boolean;
       try {
-        applyCommand(draft, userId, command, ctx);
+        applied = applyCommand(draft, userId, command, ctx);
       } catch (error) {
         throw toAppError(error);
+      }
+      if (!applied) {
+        // 合法但无事可做的命令（迟到的结算确认）：不落盘、不自增版本，只把当前视图回给他。
+        return JSON.parse(JSON.stringify(roomView(room, userId, this.viewOptions(roomId, ctx.now))));
       }
       const body_ = JSON.stringify(roomView(draft, userId, this.viewOptions(draft.id, ctx.now)));
       draft.idempotency.push([requestId, {viewJson: body_, version: draft.version, at: ctx.now, userId}]);
@@ -308,7 +315,11 @@ export class Coordinator {
       const spec: TimerSpec = {kind: 'action', handNo: actionHandNo, seat: actor};
       set.add(room.deadlines.action - now, () => this.fire(room.id, spec));
       if (room.members.find(member => member.seat === actor)?.bot === true) {
-        set.add(this.botThinkMs, () => this.fireBot(room.id, actor, actionHandNo));
+        // 固定时长的机器人一眼就能看出是机器；加一点抖动让它像在思考。
+        // 振幅跟着 botThinkMs 缩放：开发模式把它压到 10ms 时，抖动也必须跟着变小，
+        // 否则冒烟脚本每手会凭空多出几秒真实等待（见 examples/smoke.ts）。
+        const jitter = Math.floor(this.random() * Math.min(BOT_JITTER_MS, this.botThinkMs));
+        set.add(this.botThinkMs + jitter, () => this.fireBot(room.id, actor, actionHandNo));
       }
     }
 

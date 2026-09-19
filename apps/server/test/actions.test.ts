@@ -109,8 +109,12 @@ describe('行动与街道推进', () => {
 
     const result = await act(server, roomId, actor!.session, {type: 'call'});
     assert.equal(result.status, 200);
-    const text = result.body.events.at(-1).text;
+    const last = result.body.events.at(-1);
+    const text = last.text;
     assert.match(text, new RegExp(`^${name} 跟注 5$`));
+    // 播报要用的结构化字段：跟注报本次投入。
+    assert.equal(last.action, 'call');
+    assert.equal(last.amount, 5);
 
     const mine = result.body.hand.players.find((player: any) => player.seat === actor!.seat);
     assert.equal(mine.hole.length, 2);
@@ -132,6 +136,13 @@ describe('行动与街道推进', () => {
     const texts = result.body.events.map((event: any) => event.text);
     assert.ok(texts.some((text: string) => text.endsWith('弃牌')), texts.join('|'));
     assert.ok(texts.some((text: string) => /^第 1 手结束，.+ 赢得 \d+ 筹码$/.test(text)), texts.join('|'));
+    const fold = result.body.events.find((event: any) => event.text.endsWith('弃牌'));
+    assert.equal(fold.action, 'fold');
+    assert.equal(fold.amount, undefined, '弃牌没有金额，不该编一个出来');
+    // 非动作事件不带这两个键（undefined 会被 JSON 丢掉），客户端据此知道无从谈语气。
+    const settle = result.body.events.find((event: any) => event.text.startsWith('第 1 手结束'));
+    assert.equal('action' in settle, false, '结算事件不该带 action');
+    assert.equal('amount' in settle, false, '结算事件不该带 amount');
 
     const again = await act(server, roomId, actor!.session, {type: 'fold'});
     assert.equal(again.status, 409);
@@ -151,6 +162,9 @@ describe('行动与街道推进', () => {
     const texts = view.events.map((event: any) => event.text);
     const flop = texts.find((text: string) => text.startsWith('公共牌 翻牌'));
     assert.ok(flop !== undefined, texts.join('|'));
+    // 街道事件是公共信息，但既不是动作也没有金额。
+    const street = view.events.find((event: any) => event.text.startsWith('公共牌 翻牌'));
+    assert.equal('action' in street, false, '街道事件不该带 action');
     // Board cards are public: every viewer sees the same three.
     const other = (await server.view(players[1]!, roomId));
     assert.deepEqual(other.hand.board, view.hand.board);
@@ -163,7 +177,11 @@ describe('行动与街道推进', () => {
 
     const result = await act(server, roomId, actor!.session, {type: 'allIn'});
     assert.equal(result.status, 200);
-    assert.match(result.body.events.at(-1).text, /全押/);
+    const allIn = result.body.events.at(-1);
+    assert.match(allIn.text, /全押/);
+    // 单挑起手 1000 筹码全押：金额是全押后的本轮投入。
+    assert.equal(allIn.action, 'allIn');
+    assert.equal(allIn.amount, 1000);
     // The opponent can still fold or call, but a call ends the hand with no further betting.
     const opponent = players.find(player => player.user.id !== actor!.session.user.id)!;
     const turn = await waitingActor(server, roomId, [opponent]);

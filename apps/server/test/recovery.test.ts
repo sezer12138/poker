@@ -33,7 +33,7 @@ async function bootServer(): Promise<TestServer> {
 }
 
 describe('重启恢复', () => {
-  it('行动中的牌局：底牌与牌序不变，窗口重新计时 30 秒', async () => {
+  it('行动中的牌局：底牌与牌序不变，窗口重新计时 90 秒', async () => {
     let server = await bootServer();
     try {
       const {roomId, players} = await readyRoom(server);
@@ -64,15 +64,15 @@ describe('重启恢复', () => {
       );
       assert.equal(after.fairness.stage, 'playing');
       assert.match(after.notice, /重启/, '重启要给玩家一句中文提示');
-      assert.equal(after.deadline! - after.serverTime, 30000, '停机时间不计入玩家的行动时限');
+      assert.equal(after.deadline! - after.serverTime, 90000, '停机时间不计入玩家的行动时限');
 
       const restored = server.coordinator.get(roomId)!;
       assert.deepEqual(restored.fairnessStage!.deck, deck, '牌堆必须原样保留');
       assert.equal(restored.fairnessStage!.round.deckCommitment, sha256Hex(canonicalJson(deck)));
       assert.deepEqual(reconstructDeck(restored.fairnessStage!.round), deck, '重启后仍能复算牌序');
 
-      // The re-armed timer really runs: 30s later the silent player is timed out.
-      await server.clock.advance(30000);
+      // The re-armed timer really runs: 90s later the silent player is timed out.
+      await server.clock.advance(90000);
       await waitFor(() => {
         const room = server.coordinator.get(roomId)!;
         return room.tournament!.hand!.street === 'settled' || room.tournament!.hand!.actor !== after.hand.actor;
@@ -119,7 +119,7 @@ describe('重启恢复', () => {
     }
   });
 
-  it('结算展示阶段：核验记录不丢，4 秒后照常开下一手', async () => {
+  it('结算展示阶段：核验记录不丢，8 秒后照常开下一手', async () => {
     let server = await bootServer();
     try {
       const {roomId, players} = await readyRoom(server);
@@ -136,11 +136,11 @@ describe('重启恢复', () => {
 
       const after = (await server.view(players[0]!, roomId));
       assert.equal(after.fairness.stage, 'settled');
-      assert.equal(after.nextHandAt! - after.serverTime, 4000);
+      assert.equal(after.nextHandAt! - after.serverTime, 8000);
       assert.match(after.notice, /重启/);
       assert.deepEqual(after.fairness.history, before.fairness.history, '上一手的核验数据必须保留');
 
-      await server.clock.advance(3999);
+      await server.clock.advance(7999);
       await drain();
       assert.equal((await server.view(players[0]!, roomId)).fairness.handNo, 1);
 
@@ -169,7 +169,17 @@ describe('重启恢复', () => {
       for (const seat of seats) round = contribute(round, seat, nonce());
       const finalized = finalizeRound(round, seats);
       const deck = finalized.deck;
-      room.fairnessStage = {stage: 'dealing', handNo, seats, round: finalized.round, deck, dealt: null, button: null};
+      room.fairnessStage = {
+        stage: 'dealing',
+        handNo,
+        seats,
+        round: finalized.round,
+        deck,
+        dealt: null,
+        button: null,
+        settleAcks: [],
+        startStacks: {},
+      };
       await server.storage.saveRoom(room);
 
       server = await restartServer(server);
@@ -231,7 +241,8 @@ describe('重启恢复', () => {
 
       server = await restartServer(server);
 
-      await server.clock.advance(1000);
+      // 机器人思考 2500ms + 抖动上限 2000ms：4500ms 一定已经出手。
+      await server.clock.advance(4500);
       await drain();
       const after = (await server.view(players[0]!, roomId));
       assert.ok(after.events.length > before.events.length, '重启后机器人要继续行动');

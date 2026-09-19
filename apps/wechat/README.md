@@ -15,11 +15,17 @@
 
 | 页面 | 路径 | 说明 |
 | --- | --- | --- |
-| 大厅 | `pages/lobby/lobby` | 昵称、创建房间（0-8 机器人）、房间码加入、邀请进入（`?invite=`）、机器人练习、规则入口 |
+| 大厅 | `pages/lobby/lobby` | 昵称、创建房间（0-8 机器人）、房间码加入、邀请进入（`?invite=`）、机器人练习、新手教程与规则入口；首次进入显示教程引导条 |
 | 等待房间 | `pages/room/room` | 成员/座位/机器人标注、准备（附赛后完整牌序核验披露）、房主增删机器人、开始、邀请分享 |
-| 牌桌 | `pages/table/table` | 座位与 D/小盲/大盲标记、行动倒计时、公共牌、自己的底牌、筹码与投入、主池边池、事件流、操作区 |
-| 规则 | `pages/rules/rules` | 完整规则、牌型、最小加注、短码全押、边池、平局余数、单挑顺序、超时淘汰 |
+| 牌桌 | `pages/table/table` | 座位与 D/小盲/大盲标记、行动倒计时、公共牌、自己的底牌、筹码与投入、主池边池、行动播报横幅、事件流、操作区、每手结算确认弹窗（含亮牌、牌型与剩余筹码）、背景音乐开关 |
+| 新手教程 | `pages/tutorial/tutorial` | 六步走完「建房 → 准备 → 行动 → 公共牌 → 结算确认 → 核验」，每步附一条新手提示，另附常见问题 |
+| 规则 | `pages/rules/rules` | 完整规则、牌型、最小加注、短码全押、边池、平局余数、单挑顺序、超时淘汰、每手结算确认 |
 | 赛后核验 | `pages/audit/audit` | 每手承诺/贡献/牌序承诺，与本地留存承诺对照 |
+
+主题：`app.wxss` 在 `page` 上定义一套 CSS 变量（浅灰底 `#F4F6F5`、低饱和绿牌桌 `#E5EEE9`、
+白色面板、墨色文字 `#243C32`、单一品牌绿 `#28694F`，没有金色/铜色点缀；与浏览器端
+`apps/web/static/styles.css` 同一套色值），页面样式一律用 `var(--x)`，`app.json` 的窗口配色同步。
+改配色只改这两处，`test/static.test.ts` 会逐值比对两端，改一头不改另一头会直接失败。
 
 ## 关键实现约定
 
@@ -28,7 +34,12 @@
 - 生命周期：`onHide` 关闭 socket，`onShow` 重连并重新订阅；socket 不可用时回退到 `GET /api/rooms/:id`。
 - 命令：每次生成新的 `requestId`，携带 `expectedVersion`；**动作不自动重试**，`VERSION_CONFLICT` 只刷新状态。
 - 随机贡献：`wx.getRandomValues` 取 32 字节 → 64 位小写十六进制；随机源不可用时不提交并显示「随机数不可用，本手使用公开默认贡献」。全部代码不使用 `Math.random`。
-- 倒计时：`deadline - (Date.now() + offset)`，`offset = serverTime - Date.now()`。
+- 倒计时：`deadline - (Date.now() + offset)`，`offset = serverTime - Date.now()`；行动窗口长度读服务端下发的 `room.actionTimeoutMs`（当前 90 秒），不硬编码。
+- 结算确认：`room.settle` 非空时弹结算窗（`utils/settle.js` 算出每座位净输赢），「确认，继续」发 `settleAck{handNo}`；服务端豁免版本检查，真人都确认即开下一手，否则由兜底倒计时自动继续。被淘汰/观战只显示结果，可手动关闭。
+- 结算亮牌：逐座位显示亮出的牌、中文牌型名与剩余筹码，没亮的写「未摊牌」。口径由服务端定（**赢家总是亮、弃牌者不亮**，见 `apps/server/src/rooms/showdown.ts`），本端只把类别码翻成中文；剩余筹码直接读视图里的 `hand.players[].stack`，服务端不另发字段。小程序规则页没有单列皇家同花顺，这里归入「同花顺」。
+- 行动播报：`utils/announce.js` 把 `room.events` 里新到的事件按语气档（全押最大、加注中等、弃牌安静、结算/结束大、暂停红色）塞进 `data.announce`，WXML 用 `wx:if` 在牌桌中央闪一条。语气取自服务端给的结构化字段 `events[].action`，不解析中文文案；按单调递增的 `seq` 去重，首帧只建基线（入桌前的历史不补播），停留定时器在测试里用假时钟驱动。与浏览器端 `apps/web/static/js/announce.js` 同一套语气与时长，纯视觉不发声。
+- 背景音乐：`utils/music.js` 用 `wx.createWebAudioContext` 实时合成（零音频文件），偏心存 `poker.music`；基础库没有该能力时开关显示「音乐：不可用」而不是假装在放。`onHide` 停止播放。
+- 本地存储键统一在 `config.js` 的 `storage` 里：`poker.token` / `poker.user` / `poker.session` / `poker.commitments` / `poker.tutorialSeen` / `poker.music`。
 
 ## 登录与开发模式（无 AppID 约束）
 
@@ -56,8 +67,10 @@ npx tsc --noEmit   # 仓库根目录
 1. **真实 `wx.login` 登录**：需要真实 AppID/AppSecret 与可用服务端；当前只验证了 501 回退游客分支。
 2. **真机分享**：`onShareAppMessage` 的返回结构在测试中断言，但分享卡片、群内打开、`?invite=` 的实际传递必须真机验证。
 3. **`wss` 真机连通**：本地为 `ws://127.0.0.1:8787/ws`；真机要求 `wss` + 合法域名 + 证书，未验证。
-4. **WXML/WXSS 渲染与真机交互**：所有页面布局、座位定位、按钮点击、滑动与输入均未在开发者工具或真机上运行过。
-5. 其他未验证项：真机基础库版本对 `wx.getRandomValues` 的支持、`onHide`/`onShow` 真机切换行为、多设备同房间重连、弱网与超时表现。
+4. **WXML/WXSS 渲染与真机交互**：所有页面布局、座位定位、按钮点击、滑动与输入均未在开发者工具或真机上运行过；浅色主题依赖的 WXSS CSS 变量（`page` 上的 `--accent` 等）也只在静态检查里验证过，**没有真机渲染截图**。
+5. **背景音乐真机发声**：`wx.createWebAudioContext` 的调度逻辑只用假上下文验证（`test/music.test.ts`），真机是否出声、iOS 静音键与自动播放策略下的表现均未验证；不支持 Web Audio 的基础库上开关显示「音乐：不可用」。
+6. 其他未验证项：真机基础库版本对 `wx.getRandomValues` 的支持、`onHide`/`onShow` 真机切换行为、多设备同房间重连、弱网与超时表现。
 
 测试只覆盖：配置文件可解析、页面文件 1:1、所有 `.js` 语法有效且可装载、协议请求构造与错误映射、
-登录回退分支、随机贡献编码与提交条件、WebSocket 消息分派与版本单调性。
+登录回退分支、随机贡献编码与提交条件、结算弹窗金额与确认按钮决策、结算亮牌与牌型名映射、
+行动播报的语气分档与队列去重、背景音乐调度与降级、教程文案口径、WebSocket 消息分派与版本单调性。

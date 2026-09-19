@@ -3,6 +3,7 @@
     <text>第 {{handNo}} 手</text>
     <text>盲注 {{blindText}}</text>
     <text>{{levelText}}</text>
+    <text class="link" bindtap="onMusic">{{musicText}}</text>
     <text class="link">{{linkText}}</text>
   </view>
 
@@ -25,6 +26,12 @@
       </view>
       <view class="next-hand" wx:if="{{hasNextHand}}">下一手 {{nextHandText}}</view>
     </view>
+
+    <view
+      class="announce {{announce.toneClass}}"
+      wx:if="{{announce}}"
+      style="animation-duration:{{announce.durationMs}}ms"
+    >{{announce.text}}</view>
 
     <view
       class="seat {{item.self ? 'self' : ''}} {{item.isActor ? 'actor' : ''}} {{item.folded ? 'folded' : ''}} {{item.occupied ? '' : 'vacant'}}"
@@ -72,7 +79,7 @@
     </view>
     <view class="row" wx:for="{{awardRows}}" wx:key="seatText">
       <text class="muted">{{item.seatText}} 赢得</text>
-      <text class="brass">{{item.amountText}}</text>
+      <text class="accent">{{item.amountText}}</text>
     </view>
     <view class="row" wx:for="{{refundRows}}" wx:key="seatText">
       <text class="muted">{{item.seatText}} 退回</text>
@@ -125,5 +132,42 @@
 
   <view class="footer">
     <button class="btn" bindtap="onRules">规则说明</button>
+  </view>
+
+  <!-- 每手结算确认：所有真人点完「确认，继续」才开下一手，倒计时结束自动继续。 -->
+  <view class="dialog-mask" wx:if="{{dialog}}">
+    <view class="dialog">
+      <view class="dialog-title">{{dialog.title}}</view>
+      <view class="dialog-subtitle">{{dialog.summary}}</view>
+      <!-- 每个座位两行：上面是输赢金额，下面是亮出来的牌、牌型与剩余筹码。 -->
+      <view class="dialog-row" wx:for="{{dialog.rows}}" wx:key="seat">
+        <view class="dialog-head">
+          <text class="dialog-name">{{item.name}}（座位 {{item.seat}}）</text>
+          <text class="dialog-detail" wx:if="{{item.detail}}">{{item.detail}}</text>
+          <text class="dialog-amount {{item.amountClass}}">{{item.amount}}</text>
+        </view>
+        <view class="dialog-info">
+          <block wx:if="{{item.cards}}">
+            <view class="dialog-cards">
+              <view class="mini-card {{card.red ? 'red' : 'black'}}" wx:for="{{item.cards}}" wx:for-item="card" wx:key="index">
+                <text>{{card.label}}{{card.symbol}}</text>
+              </view>
+            </view>
+            <text class="dialog-type" wx:if="{{item.typeName}}">{{item.typeName}}</text>
+          </block>
+          <text class="dialog-type" wx:else>{{item.revealText}}</text>
+          <text class="dialog-stack">{{item.stackText}}</text>
+        </view>
+      </view>
+      <view class="dialog-acks">
+        <view>真人确认：{{dialog.ackText}}</view>
+        <view class="dialog-timer">{{dialogTimerText}}</view>
+      </view>
+      <button class="btn btn-primary" wx:if="{{dialog.canAck}}" bindtap="onSettleAck" disabled="{{busy}}">
+        确认，继续下一手
+      </button>
+      <button class="btn" wx:else bindtap="onDismissDialog">关闭</button>
+      <view class="dialog-note" wx:if="{{dialog.canAck}}">倒计时结束会自动开下一手，不会把你卡在这里。</view>
+    </view>
   </view>
 </view>

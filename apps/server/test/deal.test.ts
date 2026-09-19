@@ -14,7 +14,7 @@ import type {FairnessStage, PersistedRoom} from '../src/storage/storage.ts';
  * nextHand. The server must notice, or the table waits forever for an action
  * that can never be taken. This builds exactly that state.
  */
-function shortStackedRoom(): {room: PersistedRoom; seats: number[]; handNo: number} {
+function shortStackedRoom(): {room: PersistedRoom; seats: number[]; handNo: number; startStacks: Record<string, number>} {
   const seats = [0, 1];
   let completedHands = 0;
   while (blindLevel(completedHands)[1] < 20) completedHands += 1;
@@ -45,6 +45,8 @@ function shortStackedRoom(): {room: PersistedRoom; seats: number[]; handNo: numb
     deck: finalized.deck as Card[],
     dealt: null,
     button: null,
+    settleAcks: [],
+    startStacks: {},
   };
 
   const room: PersistedRoom = {
@@ -72,14 +74,15 @@ function shortStackedRoom(): {room: PersistedRoom; seats: number[]; handNo: numb
     lastActivityAt: 0,
     createdAt: 0,
   };
-  return {room, seats, handNo};
+  // 发牌前的筹码就是这份 fixture 给 entries 设的起始值（座位 0 的短码正好是小盲）。
+  return {room, seats, handNo, startStacks: {0: small, 1: 1000}};
 }
 
 const ctx: CommandContext = {now: 1_000_000};
 
 describe('发牌阶段', () => {
   it('发牌即结算的短码牌局不会留下无人可行动的死局', () => {
-    const {room, handNo} = shortStackedRoom();
+    const {room, handNo, startStacks} = shortStackedRoom();
     applyDeal(room, ctx);
 
     const hand = room.tournament!.hand!;
@@ -93,10 +96,13 @@ describe('发牌阶段', () => {
       assert.equal(room.deadlines.nextHand, null);
       assert.ok(room.tournament!.winner !== null);
     } else {
-      assert.equal(room.deadlines.nextHand, ctx.now + 4000);
+      assert.equal(room.deadlines.nextHand, ctx.now + 8000);
     }
     assert.equal(room.deadlines.action, null, '不能留下没有行动人的行动截止时间');
     assert.equal(room.deadlines.actionSeat, null);
+
+    // 本手输赢金额靠这份快照算：必须是发牌（也就是收盲注）之前的筹码。
+    assert.deepEqual(room.fairnessStage!.startStacks, startStacks, '快照要记发牌前的筹码');
 
     // The settle is recorded once, with the button the deal used.
     assert.equal(room.fairnessHistory.length, 1);

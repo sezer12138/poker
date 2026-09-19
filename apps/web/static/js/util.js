@@ -4,6 +4,10 @@
 export const TOKEN_KEY = 'poker_token';
 export const NAME_KEY = 'poker_name';
 export const FAIR_KEY_PREFIX = 'poker_fair';
+/** 新手引导条只在首次进大厅时出现，看过一次就不再打扰。 */
+export const TUTORIAL_KEY = 'poker_tutorial_seen';
+/** 背景音乐开关偏好（'on' / 'off'）。 */
+export const MUSIC_KEY = 'poker_music';
 
 export function bytesToHex(bytes) {
   let out = '';
