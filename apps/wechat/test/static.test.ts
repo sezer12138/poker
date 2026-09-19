@@ -213,10 +213,10 @@ test('规则页覆盖必需主题', () => {
   for (const keyword of ['牌型', '最小加注', '短码全押', '边池', '平局', '单挑', '超时', '淘汰', '核验', '结算']) {
     assert.ok(rules.includes(keyword), `规则页缺少主题：${keyword}`);
   }
-  // 行动时限与结算口径已改为 90 秒 / 8 秒兜底，规则页不能还写着 30 秒。
-  assert.ok(rules.includes('90 秒'), '规则页未说明 90 秒行动时限');
+  // 行动时限与结算口径已改为 5 分钟 / 10 分钟兜底，规则页不能还写着 30 秒。
+  assert.ok(rules.includes('5 分钟'), '规则页未说明 5 分钟行动时限');
   assert.ok(!rules.includes('30 秒'), '规则页仍写着旧的 30 秒行动时限');
-  assert.ok(rules.includes('8 秒'), '规则页未说明结算兜底 8 秒');
+  assert.ok(rules.includes('10 分钟'), '规则页未说明结算兜底 10 分钟');
 });
 
 test('README 明确列出无法验证项', () => {

@@ -10,6 +10,7 @@ const cards = require('../../utils/cards.js');
 const format = require('../../utils/format.js');
 const fairness = require('../../utils/fairness.js');
 const settleUtil = require('../../utils/settle.js');
+const feedbackUtil = require('../../utils/feedback.js');
 const musicUtil = require('../../utils/music.js');
 const announceUtil = require('../../utils/announce.js');
 const config = require('../../config.js');
@@ -265,7 +266,10 @@ Page({
     winnerText: '',
     dialog: null,
     dialogTimerText: '',
-    musicText: '音乐：关'
+    musicText: '音乐：关',
+    voiceText: '语音：关',
+    sfxText: '音效：关',
+    motionClass: ''
   },
 
   onLoad(query) {
@@ -273,6 +277,9 @@ Page({
   },
 
   onShow() {
+    this.setupFeedback();
+    this.feedback.setActive(true);
+    this.feedbackInitial = true;
     this.attach();
   },
 
@@ -282,6 +289,8 @@ Page({
 
   onUnload() {
     this.detach();
+    Object.values(this.audioChannels || {}).forEach(function (audio) { audio.destroy(); });
+    this.audioChannels = {};
   },
 
   attach() {
@@ -307,6 +316,11 @@ Page({
 
   detach() {
     this.attached = false;
+    if (this.feedback) this.feedback.setActive(false);
+    this.feedbackInitial = true;
+    if (this.announcer) this.announcer.clear();
+    this.announced = false;
+    if (this.motionTimer) clearTimeout(this.motionTimer);
     this.stopTick();
     if (this.client) {
       this.client.close();
@@ -346,6 +360,72 @@ Page({
     this.setData({ musicText: this.musicLabel(playing) });
   },
 
+  setupFeedback() {
+    if (this.feedback) return;
+    const self = this;
+    this.audioChannels = {};
+    this.audioEnabled = {};
+    this.voiceQueue = feedbackUtil.createVoiceQueue({
+      playClip: (clip, done) => this.playFeedbackClip('voice', clip, done),
+      stopClip: () => { if (this.audioChannels.voice) this.audioChannels.voice.stop(); }
+    });
+    this.feedbackInitial = true;
+    this.feedback = feedbackUtil.createFeedback({
+      play: function (channel, clip, amount) { self.playFeedback(channel, clip, amount); },
+      stop: function (channel) {
+        if (channel === 'voice') self.voiceQueue.clear();
+        else if (self.audioChannels[channel]) self.audioChannels[channel].stop();
+      }
+    });
+    ['voice', 'sfx'].forEach(function (channel) {
+      self.audioEnabled[channel] = wx.getStorageSync(config.storage[channel]) === 'on';
+      self.feedback.setEnabled(channel, self.audioEnabled[channel]);
+      self.setData({[channel + 'Text']: (channel === 'voice' ? '语音' : '音效') + '：' + (self.audioEnabled[channel] ? '开' : '关')});
+    });
+  },
+
+  playFeedback(channel, clip, amount) {
+    if (channel === 'voice') this.voiceQueue.enqueue(feedbackUtil.speechClips(clip, amount));
+    else this.playFeedbackClip(channel, clip);
+  },
+
+  playFeedbackClip(channel, clip, done) {
+    try {
+      if (typeof wx.createInnerAudioContext !== 'function') throw new Error('unsupported');
+      let audio = this.audioChannels[channel];
+      if (!audio) {
+        audio = wx.createInnerAudioContext();
+        audio.onEnded(() => { if (this.audioDone && this.audioDone[channel]) this.audioDone[channel](); });
+        audio.onError(() => {
+          this.setData({notice: '声音未能播放，请检查设备音量并重新启用声音。'});
+          if (channel === 'voice') this.voiceQueue.clear();
+        });
+        this.audioChannels[channel] = audio;
+      }
+      audio.stop();
+      if (!this.audioDone) this.audioDone = {};
+      this.audioDone[channel] = done;
+      audio.src = '/audio/' + clip + '.mp3';
+      audio.volume = channel === 'voice' ? 0.85 : 0.4;
+      audio.play();
+    } catch (err) {
+      this.setData({notice: '当前设备无法播放声音'});
+      if (channel === 'voice') this.voiceQueue.clear();
+    }
+  },
+
+  onFeedback(event) {
+    this.setupFeedback();
+    const channel = event.currentTarget.dataset.channel;
+    if (!['voice', 'sfx'].includes(channel)) return;
+    const enabled = !this.audioEnabled[channel];
+    this.audioEnabled[channel] = enabled;
+    this.feedback.setEnabled(channel, enabled);
+    wx.setStorageSync(config.storage[channel], enabled ? 'on' : 'off');
+    this.setData({[channel + 'Text']: (channel === 'voice' ? '语音' : '音效') + '：' + (enabled ? '开' : '关')});
+    if (enabled) this.playFeedback(channel, channel === 'voice' ? 'check' : 'chips');
+  },
+
   openSocket() {
     const self = this;
     if (this.client) return;
@@ -358,6 +438,7 @@ Page({
         self.setData({ notice: '连接提醒：' + ((error && error.message) || '未知错误') });
       },
       onStatus(status) {
+        if (status !== 'open') self.feedbackInitial = true;
         self.setData({ linkText: STATUS_LABEL[status] || status });
       },
       onClosed(decision) {
@@ -476,6 +557,14 @@ Page({
       serverNotice: room.notice || '',
       error: ''
     });
+    this.setupFeedback();
+    const cue = this.feedback.ingest(room.events || [], {initial: this.feedbackInitial});
+    this.feedbackInitial = false;
+    if (cue && cue.sfx) {
+      if (this.motionTimer) clearTimeout(this.motionTimer);
+      this.setData({motionClass: 'motion-' + cue.sfx});
+      this.motionTimer = setTimeout(() => this.setData({motionClass: ''}), 650);
+    }
     this.announceEvents(room.events);
     this.syncClock();
     this.updateFairness(room);

@@ -497,7 +497,7 @@ export async function advanceMatch(
     const actorSeat = view.hand?.actor ?? null;
     if (view.fairness.stage !== 'playing' || actorSeat === null) {
       // 结算展示或发牌中：这里没人点确认，跨过整个兜底窗口让定时器把下一手推起来。
-      await server.clock.advance(8000);
+      await server.clock.advance(600000);
       continue;
     }
     const actor = players.find(player => seatOf(view, player) === actorSeat);

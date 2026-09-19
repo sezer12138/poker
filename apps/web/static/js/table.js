@@ -1,3 +1,4 @@
+import {createFeedback, speechClips, createVoiceQueue} from './feedback.js?v=20260919-amount';
 // 牌桌页逻辑。约束：模块顶层不访问 window/document/localStorage，浏览器启动放在函数内。
 
 import {ApiError, buildCommand, buildContributeCommand, createApi, ensureSession, isUnauthorized} from './api.js';
@@ -26,7 +27,7 @@ import {MUSIC_KEY, el, navigate, pageUrl, qs, queryParam, render, setDisabled, s
 import {createRoomSocket} from './ws.js';
 
 /** 兜底用的行动时限：正常情况下以服务端下发的 room.actionTimeoutMs 为准。 */
-const ACTION_DEADLINE_MS = 90000;
+const ACTION_DEADLINE_MS = 300000;
 const MAX_EVENTS = 40;
 
 export function seatPositions(seats, viewerSeat) {
@@ -249,13 +250,16 @@ function handleError(error) {
 
 function applyRoom(room, source) {
   if (!room) return;
+  const previous = view.room;
   view.room = room;
   // 每次应用快照都用服务器时间重算偏移，刷新或消息重放都不会让倒计时跑偏。
   view.offset = computeOffset(room.serverTime, Date.now());
   handleFairness(room);
   renderAll();
   // 播报跟在渲染之后：先把新的桌面状态画出来，再把刚发生的事报一遍。
-  if (view.announcer) view.announcer.ingest(room.events ?? [], {initial: !view.announced});
+  if (view.announcer) view.announcer.ingest(room.events ?? [], {initial: !view.announced || document.hidden || view.feedbackSyncing});
+  const cue = view.feedback?.ingest(room.events ?? [], {initial: !view.announced || document.hidden || view.feedbackSyncing});
+  animateChanges(previous, room, cue);
   view.announced = true;
 }
 
@@ -775,6 +779,127 @@ function wireActions() {
  * 一声不响，不如让玩家自己点一下。上次开着的话这次也直接续上，并在第一次点击时
  * 把被自动播放策略挂起的音频上下文唤醒。
  */
+function animateChanges(previous, room, cue) {
+  if (!previous || document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const animate = (element, frames, delay = 0) => element?.animate?.(frames, {duration: 440, delay, easing: 'cubic-bezier(.2,.8,.2,1)'});
+  const newHand = previous.hand?.id !== room.hand?.id;
+  const oldBoard = newHand ? 0 : (previous.hand?.board?.length ?? 0);
+  if ((room.hand?.board?.length ?? 0) > oldBoard) {
+    [...node('board').children].slice(oldBoard, room.hand.board.length).forEach((card, i) =>
+      animate(card, [{opacity: 0, transform: 'translateY(-18px) rotateY(65deg)'}, {opacity: 1, transform: 'none'}], i * 85));
+  }
+  if (newHand) document.querySelectorAll('.seat__cards .card').forEach((card, i) =>
+    animate(card, [{opacity: 0, transform: 'translateY(-12px) scale(.85)'}, {opacity: 1, transform: 'none'}], i * 25));
+  if (cue?.sfx === 'chips') animate(node('pots'), [{transform: 'scale(.92)'}, {transform: 'scale(1.08)'}, {transform: 'scale(1)'}]);
+  for (const player of room.hand?.players ?? []) {
+    const before = previous.hand?.players?.find(p => p.seat === player.seat);
+    if (!newHand && before && player.roundBet > before.roundBet)
+      animate(document.querySelector(`[data-seat="${player.seat}"] .seat__bet`), [{opacity: .3, transform: 'translateY(10px)'}, {opacity: 1, transform: 'none'}]);
+  }
+  if (room.settle && previous.settle?.handNo !== room.settle.handNo)
+    animate(node('result-dialog-card'), [{opacity: 0, transform: 'translateY(18px) scale(.97)'}, {opacity: 1, transform: 'none'}]);
+}
+
+/** 回前台先取快照建立基线；用代次防止旧请求在再次切后台后恢复声音。 */
+export function createForegroundSync({refresh, baseline, setActive}) {
+  let epoch = 0;
+  return async hidden => {
+    const current = ++epoch;
+    setActive(false);
+    if (hidden) return;
+    await refresh();
+    if (current !== epoch) return;
+    baseline();
+    setActive(true);
+  };
+}
+
+function wireFeedback() {
+  const channels = {};
+  const voiceQueue = createVoiceQueue({
+    playClip: (clip, done) => playClip('voice', clip, done),
+    stopClip: () => channels.voice?.pause(),
+  });
+  const stop = channel => {
+    if (channel === 'voice') voiceQueue.clear();
+    else channels[channel]?.pause();
+  };
+  const play = (channel, clip, amount) => {
+    if (channel === 'voice') voiceQueue.enqueue(speechClips(clip, amount));
+    else playClip(channel, clip);
+  };
+  function playClip(channel, clip, done = () => {}) {
+    try {
+      let audio = channels[channel];
+      if (!audio) {
+        audio = new Audio();
+        audio.hidden = true;
+        audio.dataset.channel = channel;
+        document.body.append(audio);
+        channels[channel] = audio;
+      }
+      audio.pause();
+      audio.onended = done;
+      audio.onerror = () => {
+        showNotice('声音未能播放，请重新点击声音开关启用。');
+        if (channel === 'voice') voiceQueue.clear();
+      };
+      audio.src = new URL(`../audio/${clip}.mp3`, import.meta.url).href;
+      audio.volume = channel === 'voice' ? .85 : .4;
+      audio.play().catch(error => {
+        if (error.name !== 'AbortError') {
+          showNotice('声音未能播放，请重新点击声音开关启用。');
+          if (channel === 'voice') voiceQueue.clear();
+        }
+      });
+    } catch {
+      showNotice('当前设备无法播放声音');
+      if (channel === 'voice') voiceQueue.clear();
+    }
+  };
+  view.feedback = createFeedback({play, stop});
+  for (const channel of ['voice', 'sfx']) {
+    const button = node(`${channel}-btn`);
+    let enabled = storageGet(`poker.${channel}`) === 'on';
+    // 刷新后保留偏好，但必须在本页手势内解锁，不能把自动播放失败伪装成已开启。
+    let armed = false;
+    const paint = () => {
+      setText(button, `${channel === 'voice' ? '语音' : '音效'}：${enabled ? (armed ? '开' : '待启用') : '关'}`);
+      button?.setAttribute('aria-pressed', String(enabled && armed));
+      view.feedback.setEnabled(channel, enabled && armed);
+    };
+    paint();
+    button?.addEventListener('click', () => {
+      enabled = enabled && !armed ? true : !enabled;
+      armed = true;
+      storageSet(`poker.${channel}`, enabled ? 'on' : 'off');
+      paint();
+      if (enabled) play(channel, channel === 'voice' ? 'check' : 'chips');
+    });
+  }
+  const foreground = createForegroundSync({
+    refresh: () => view.socket?.refresh(),
+    setActive: active => {
+      view.feedbackSyncing = !active;
+      view.feedback.setActive(active);
+      if (!active) view.announcer?.clear();
+    },
+    baseline: () => {
+      const events = view.room?.events ?? [];
+      view.feedback.ingest(events, {initial: true});
+      view.announcer?.ingest(events, {initial: true});
+      view.announced = true;
+    },
+  });
+  document.addEventListener('visibilitychange', () => {
+    void foreground(document.hidden);
+    if (document.hidden) view.music?.stop();
+    else if (storageGet(MUSIC_KEY) === 'on') view.music?.start();
+    setText(node('music-btn'), `音乐：${view.music?.state().playing ? '开' : '关'}`);
+  });
+  window.addEventListener('pagehide', () => { void foreground(true); });
+}
+
 function wireMusic() {
   const button = node('music-btn');
   const music = createMusic({});
@@ -812,6 +937,7 @@ async function main() {
   view.api = createApi({});
   wireActions();
   wireMusic();
+  wireFeedback();
   // 必须在第一次 applyRoom 之前建好：首帧要走「只建立基线」那条路。
   view.announcer = createAnnouncer({display: announceDisplay()});
   const session = await ensureSession(view.api);
@@ -822,7 +948,10 @@ async function main() {
     fetchRoom: () => view.api.getRoom(view.roomId),
     onState: applyRoom,
     onError: (error) => handleError(error),
-    onStatus: () => renderBanner(view.room ?? {nextHandAt: null}),
+    onStatus: (status) => {
+      if (status !== 'open') view.announced = false;
+      renderBanner(view.room ?? {nextHandAt: null});
+    },
     // 顶号/被移出：服务端不会再放行，直接显示中文原因，不再重连。
     onClosed: (decision) => handleError({code: decision.code, message: decision.message}),
   });

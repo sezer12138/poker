@@ -20,7 +20,7 @@ export interface CommandContext {
   /** Injected randomness for bot decisions so tests stay deterministic. */
   random?: () => number;
   log?: (message: string, error?: unknown) => void;
-  /** 结算展示时长；只由开发模式覆盖（冒烟脚本要压缩一整场），默认 8 秒。 */
+  /** 结算展示时长；只由开发模式覆盖（冒烟脚本要压缩一整场），默认 10 分钟。 */
   settleDelayMs?: number;
 }
 
@@ -375,7 +375,7 @@ export function applySeatAction(
         source === 'timeout'
           ? `${memberName(room, event.seat)} 超时，自动${event.action.type === 'fold' ? '弃牌' : '过牌'}`
           : `${memberName(room, event.seat)} ${actionText(event.action, paid, player.roundBet)}`;
-      // 金额口径见 PublicEvent.amount：加注报累计目标，全押与跟注报实际投入。
+      // 金额口径见 PublicEvent.amount：加注与全押报本轮累计投入，跟注报本次实际投入。
       const amount =
         event.action.type === 'raiseTo'
           ? event.action.amount

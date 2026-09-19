@@ -80,7 +80,7 @@ async function spawnServer(): Promise<{base: string; stop: () => Promise<void>}>
       POKER_HOST: '127.0.0.1',
       POKER_PORT: '0',
       POKER_DATA_DIR: dataDir,
-      // 打到分出胜负才解锁赛后核验，而每手之间有 8 秒结算展示；机器人一直弃牌时
+      // 打到分出胜负才解锁赛后核验，而每手之间有 10 分钟结算展示；机器人一直弃牌时
       // 一场可能几十手，按生产节奏就是好几分钟。这两个时长只在开发模式下可改，
       // 生产模式会忽略（见 config.ts），所以压缩节奏不会改变要验证的行为。
       // 结算窗留 400ms（脚本轮询 50ms 一次）：足够稳定地看到并以真人身份点一次确认，

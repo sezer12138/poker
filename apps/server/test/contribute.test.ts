@@ -198,7 +198,7 @@ describe('随机贡献与发牌流程', () => {
       });
       if (actor === undefined) {
         // 轮到机器人（思考 2500ms + 抖动）或正在结算兜底窗口：跨过足够的时钟让它推进。
-        await server.clock.advance(8000);
+        await server.clock.advance(600000);
         continue;
       }
       const actorView = (await server.view(actor, roomId));

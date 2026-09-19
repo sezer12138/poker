@@ -34,7 +34,7 @@
 - 生命周期：`onHide` 关闭 socket，`onShow` 重连并重新订阅；socket 不可用时回退到 `GET /api/rooms/:id`。
 - 命令：每次生成新的 `requestId`，携带 `expectedVersion`；**动作不自动重试**，`VERSION_CONFLICT` 只刷新状态。
 - 随机贡献：`wx.getRandomValues` 取 32 字节 → 64 位小写十六进制；随机源不可用时不提交并显示「随机数不可用，本手使用公开默认贡献」。全部代码不使用 `Math.random`。
-- 倒计时：`deadline - (Date.now() + offset)`，`offset = serverTime - Date.now()`；行动窗口长度读服务端下发的 `room.actionTimeoutMs`（当前 90 秒），不硬编码。
+- 倒计时：`deadline - (Date.now() + offset)`，`offset = serverTime - Date.now()`；行动窗口长度读服务端下发的 `room.actionTimeoutMs`（当前 5 分钟），不硬编码。
 - 结算确认：`room.settle` 非空时弹结算窗（`utils/settle.js` 算出每座位净输赢），「确认，继续」发 `settleAck{handNo}`；服务端豁免版本检查，真人都确认即开下一手，否则由兜底倒计时自动继续。被淘汰/观战只显示结果，可手动关闭。
 - 结算亮牌：逐座位显示亮出的牌、中文牌型名与剩余筹码，没亮的写「未摊牌」。口径由服务端定（**赢家总是亮、弃牌者不亮**，见 `apps/server/src/rooms/showdown.ts`），本端只把类别码翻成中文；剩余筹码直接读视图里的 `hand.players[].stack`，服务端不另发字段。小程序规则页没有单列皇家同花顺，这里归入「同花顺」。
 - 行动播报：`utils/announce.js` 把 `room.events` 里新到的事件按语气档（全押最大、加注中等、弃牌安静、结算/结束大、暂停红色）塞进 `data.announce`，WXML 用 `wx:if` 在牌桌中央闪一条。语气取自服务端给的结构化字段 `events[].action`，不解析中文文案；按单调递增的 `seq` 去重，首帧只建基线（入桌前的历史不补播），停留定时器在测试里用假时钟驱动。与浏览器端 `apps/web/static/js/announce.js` 同一套语气与时长，纯视觉不发声。

@@ -26,7 +26,9 @@ module.exports = {
     // 是否看过新手教程：看过之后大厅不再显示引导条。
     tutorialSeen: 'poker.tutorialSeen',
     // 背景音乐开关偏好，与 web 端同名同值；只影响本机播放。
-    music: 'poker.music'
+    music: 'poker.music',
+    voice: 'poker.voice',
+    sfx: 'poker.sfx'
   },
 
   notice: {

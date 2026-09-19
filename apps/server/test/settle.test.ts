@@ -81,7 +81,7 @@ describe('结算确认门', () => {
     assert.equal(view.settle.handNo, handNo);
     assert.deepEqual(view.settle.acks, [], '还没人点确认');
     assert.deepEqual(view.settle.required, await seatsOf(roomId, players));
-    assert.equal(view.actionTimeoutMs, 90000, '客户端画倒计时条要用它，不能自己写死');
+    assert.equal(view.actionTimeoutMs, 300000, '客户端画倒计时条要用它，不能自己写死');
   });
 
   it('结算视图给出每个座位本手的净输赢金额', async () => {
@@ -318,7 +318,7 @@ describe('结算确认门', () => {
   it('没人确认时，兜底窗口结束后自动继续（挂机的人不能钉住牌桌）', async () => {
     const {roomId, players, handNo} = await settledHand();
     await ack(players[0]!, roomId, handNo);
-    await server.clock.advance(8000);
+    await server.clock.advance(600000);
     await drain();
     const view = await server.view(players[1]!, roomId);
     assert.equal(view.fairness.handNo, handNo + 1, '兜底定时器必须把牌桌推下去');
@@ -363,7 +363,7 @@ describe('结算确认门', () => {
       const after = await booted.view(room.players[0]!, room.roomId);
       assert.equal(after.fairness.handNo, handNo, '重启不该凭空开下一手');
       assert.deepEqual(after.settle.acks, [seat], '确认过的座位在重启后依然算数');
-      assert.equal(after.nextHandAt! - after.serverTime, 8000, '兜底窗口重新计时，停机不算在玩家头上');
+      assert.equal(after.nextHandAt! - after.serverTime, 600000, '兜底窗口重新计时，停机不算在玩家头上');
 
       // 剩下的真人一确认就该立刻开手，说明重启没把 acks 弄丢。
       const second = await booted.command(room.players[1]!, room.roomId, {

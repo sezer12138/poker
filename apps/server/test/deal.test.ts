@@ -96,7 +96,7 @@ describe('发牌阶段', () => {
       assert.equal(room.deadlines.nextHand, null);
       assert.ok(room.tournament!.winner !== null);
     } else {
-      assert.equal(room.deadlines.nextHand, ctx.now + 8000);
+      assert.equal(room.deadlines.nextHand, ctx.now + 600000);
     }
     assert.equal(room.deadlines.action, null, '不能留下没有行动人的行动截止时间');
     assert.equal(room.deadlines.actionSeat, null);

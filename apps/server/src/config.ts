@@ -1,10 +1,10 @@
-export const ACTION_TIMEOUT_MS = 90000;
+export const ACTION_TIMEOUT_MS = 5 * 60 * 1000;
 export const CONTRIBUTE_WINDOW_MS = 5000;
 /**
  * 结算弹窗的兜底窗口。真人全部点「确认」会立刻开下一手，这个时长是「有人不点」
  * 时自动继续的上限——不设上限会让一个挂机的玩家把整桌人钉在结算界面上。
  */
-export const SETTLE_DELAY_MS = 8000;
+export const SETTLE_DELAY_MS = 10 * 60 * 1000;
 export const BOT_THINK_MS = 2500;
 /** 机器人思考时长的随机振幅，叠加在 BOT_THINK_MS 之上（见 coordinator.scheduleTimers）。 */
 export const BOT_JITTER_MS = 2000;

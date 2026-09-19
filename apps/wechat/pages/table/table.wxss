@@ -519,3 +519,21 @@
   font-size: 22rpx;
   color: var(--muted);
 }
+
+/* 与网页版一致的浅绿桌面、声音入口和克制的行动反馈。 */
+.topbar { flex-wrap: wrap; gap: 10rpx; }
+.sound-controls { display: flex; justify-content: flex-end; gap: 12rpx; padding-bottom: 12rpx; }
+.sound-controls button { margin: 0; color: var(--accent); background: var(--accent-soft); font-size: 22rpx; }
+.felt { background: radial-gradient(ellipse at 50% 40%, var(--accent-soft), var(--felt)); border: 6rpx solid var(--line); box-shadow: inset 0 0 0 2rpx var(--line-strong), 0 12rpx 30rpx rgba(36,60,50,.07); }
+.seat { border-radius: 18rpx; box-shadow: 0 5rpx 16rpx rgba(36,60,50,.06); }
+.seat.actor { box-shadow: 0 0 0 5rpx rgba(40,105,79,.12), 0 6rpx 20rpx rgba(40,105,79,.14); }
+.seat-bet { color: var(--accent); font-weight: 600; }
+.pot-value { font-weight: 750; }
+.board-card { box-shadow: 0 4rpx 10rpx rgba(36,60,50,.08); }
+.motion-deal .board-card:not(.empty) { animation: table-deal 450ms ease-out; }
+.motion-chips .pot-value { animation: table-pot 450ms ease-out; }
+.motion-win .pot-value { animation: table-pot 600ms ease-out; }
+.seat-award { animation: table-deal 450ms ease-out; }
+@keyframes table-deal { from { opacity: 0; transform: translateY(-16rpx) scale(.9); } to { opacity: 1; transform: none; } }
+@keyframes table-pot { 0% { transform: scale(.94); } 45% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .table-page * { animation: none !important; transition: none !important; } }

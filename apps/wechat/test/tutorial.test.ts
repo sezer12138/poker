@@ -1,6 +1,6 @@
 /**
  * 新手教程页：静态数据必须真的教会一遍完整流程，且口径与产品一致
- * （90 秒行动时限、免费虚拟筹码、结算确认）。这里只校验数据与跳转，
+ * （5 分钟行动时限、免费虚拟筹码、结算确认）。这里只校验数据与跳转，
  * 不验证渲染——WXML 的渲染只能在微信开发者工具里看。
  */
 import test from 'node:test';
@@ -43,10 +43,10 @@ test('教程覆盖完整流程的关键词', () => {
   }
 });
 
-test('教程写明 90 秒行动时限与结算确认口径', () => {
+test('教程写明 5 分钟行动时限与结算确认口径', () => {
   const {context} = tutorialPage();
   const text = JSON.stringify(context.data);
-  assert.ok(text.includes('90 秒'), '教程未说明 90 秒行动时限');
+  assert.ok(text.includes('5 分钟'), '教程未说明 5 分钟行动时限');
   assert.ok(!text.includes('30 秒'), '教程仍写着旧的 30 秒行动时限');
   assert.ok(text.includes('确认'), '教程未说明结算确认');
   assert.ok(text.includes('自动继续'), '教程未说明不点确认也会自动开下一手');
